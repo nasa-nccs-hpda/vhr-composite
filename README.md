@@ -1,1 +1,3 @@
-# vhr-composite
+# Very high resolution (VHR) Composite Tool
+
+
