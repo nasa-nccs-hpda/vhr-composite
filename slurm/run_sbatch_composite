@@ -1,0 +1,3 @@
+#!/bin/bash
+
+sbatch -J $1_composite_CAS -o composite_CAS_$1.out ./run_composite tile_lists/tile_$1.txt 
