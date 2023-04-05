@@ -207,6 +207,9 @@ class Composite(object):
             strip_data_array = rxr.open_rasterio(land_cover_path)
             cloud_mask_data_array = rxr.open_rasterio(cloud_mask_path)
         except rasterio.errors.RasterioIOError:
+            error_file = os.path.basename(land_cover_path).replace('.tif', '.txt')
+            with open(error_file, 'w') as fh:
+                fh.writelines([land_cover_path+'\n'+cloud_mask_path+'\n'])
             return None
 
         geometry_to_clip = grid_geodataframe.geometry.values
@@ -314,14 +317,23 @@ class Composite(object):
             self._logger.info(f'{tile_raster_path} already exists.')
             return None
 
-        # Select the array without the band, transpose to time-last format
-        tile_array = tile_dataset[variable_name].sel(time=passed_qa_datetimes)
+        try:
+            # Select the array without the band, transpose to time-last format
+            tile_array = tile_dataset[variable_name].sel(time=passed_qa_datetimes)
+        except KeyError:
+            self._logger.error(
+                f'Could not find all times in passed {passed_qa_datetimes}')
+            return None
 
         self._logger.info(tile_array.time)
-
-        bad_tile_array = tile_dataset[variable_name].sel(
-            time=not_passed_qa_datetimes)
-
+        try:
+            bad_tile_array = tile_dataset[variable_name].sel(
+                time=not_passed_qa_datetimes)
+        except KeyError:
+            self._logger.error(
+                f'Could not find all times in not-passed {not_passed_qa_datetimes}'
+            )
+            return None
         tile_array = tile_array.sel(
             band=BAND).transpose(Y, X, TIME)
 
