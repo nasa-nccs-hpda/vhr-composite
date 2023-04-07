@@ -15,6 +15,7 @@ def soilMoistureQA(tileDF):
     badSoilMoisture = tileDF['soilM_medi'] >= 2800
     goodDF = tileDF[goodSoilMoisture]
     badDF = tileDF[badSoilMoisture]
+    badDF = badDF.sort_values(by='soilM_medi')
     return goodDF, badDF
 
 
@@ -42,8 +43,7 @@ def main():
 
     grid_path = '/explore/nobackup/people/mwooten3/Senegal_LCLUC/' + \
         'Shapefiles/Grid/Senegal_Grid__all.shp'
-    metadataFootprints = '/explore/nobackup/people/mwooten3/' + \
-        'Senegal_LCLUC/Compositing/Grids/CAS_M1BS_metadataGrid.shp'
+    metadataFootprints = 'CAS_M1BS_metadataGrid.gpkg'
     # * Using 8-bit outputs I made for now as I no longer have access to older
     # output directory - eventually use the .cog files?
     lcDir = '/explore/nobackup/projects/3sl/development/' + \
