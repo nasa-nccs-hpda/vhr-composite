@@ -1,0 +1,3 @@
+#!/bin/bash
+
+sbatch -J $1_composite_ETZ -o composite_ETZ_$1.out ./run_etz_composite tile_lists/tile_$1.txt 

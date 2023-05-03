@@ -2,6 +2,8 @@ import logging
 import time
 import os
 
+from typing import Tuple
+
 import numpy as np
 import numba as nb
 import xarray as xr
@@ -85,7 +87,7 @@ def calculate_alg(grid_cell_data_array: xr.DataArray,
 
 
 @nb.njit
-def _mode_sum_product(array: np.ndarray) -> int:
+def _mode_sum_product(array: np.ndarray) -> Tuple[int, int]:
     """
     Multi-modal function
     Given a single dimension host array where each index is a class
@@ -95,14 +97,29 @@ def _mode_sum_product(array: np.ndarray) -> int:
     :return max_element_to_return: int, element
     """
     max_element = np.max(array)
+    sum_element_to_return = int(np.sum(array))
     if max_element == SUM_NO_MODE:
-        return NO_DATA
+        return NO_DATA, sum_element_to_return
     max_indices = np.argwhere(array == max_element).flatten()
     max_pl = np.where(max_indices == CLASS_0, CLASS_0_ALIAS, max_indices)
     max_pl = np.where(max_indices == CLASS_1, CLASS_1_ALIAS, max_pl)
     max_pl = np.where(max_indices == CLASS_2, CLASS_2_ALIAS, max_pl)
     max_element_to_return = int(np.sum(max_pl))
-    return max_element_to_return
+    return max_element_to_return, sum_element_to_return
+
+
+@nb.njit
+def _get_nobservations(array: np.ndarray) -> int:
+    """
+    Multi-modal function
+    Given a single dimension host array where each index is a class
+    return all occurences of the max in the array such that if
+    multiple classes have the same max, return the sum.
+    :param array: np.ndarray, Flat array to calculate multi-mode
+    :return max_element_to_return: int, element
+    """
+    sum_element_to_return = np.sum(array)
+    return sum_element_to_return
 
 
 @nb.njit(parallel=True)
@@ -115,6 +132,31 @@ def _fast_iterate_mode(mode: np.ndarray, array: np.ndarray) -> np.ndarray:
         for x in nb.prange(array.shape[X_AXIS]):
             mode[y, x] = _mode_sum_product(array[y, x, :])
     return mode
+
+
+@nb.njit(parallel=True)
+def _fast_iterate_mode_nobs(mode: np.ndarray, nobs: np.ndarray, array: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Iterate through first two dims of 3d host array
+    to get the mode for the z axis.
+    """
+    for y in nb.prange(array.shape[Y_AXIS]):
+        for x in nb.prange(array.shape[X_AXIS]):
+            mode[y, x], nobs[y, x] = _mode_sum_product(array[y, x, :])
+    return mode, nobs
+
+
+# @nb.njit(parallel=True)
+#def _fast_iterate_mode_nobs(mode: np.ndarray, nobs: np.ndarray, array: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+#    """
+#    Iterate through first two dims of 3d host array
+#    to get the mode for the z axis.
+#    """
+#    for y in nb.prange(array.shape[Y_AXIS]):
+#        for x in nb.prange(array.shape[X_AXIS]):
+#            mode[y, x], nobs[y, x] = _mode_sum_product(array[y, x, :])
+#            nobs[y, x] = _get_nobservations(array[y, x, :])
+#    return mode, nobs
 
 
 def _get_sum(binary_class: str,
@@ -134,31 +176,53 @@ def _get_sum(binary_class: str,
 def calculate_mode(grid_cell_data_array: xr.DataArray,
                    classes: dict,
                    from_disk: bool = False,
+                   calculate_nobservations: bool = True,
                    grid_cell_zarr_path: str = None,
                    logger: logging.Logger = None) -> np.ndarray:
     """
     Get the mode from a series of binary class occurance arrays.
     """
     num_classes = len(classes.keys())
+
     if from_disk:
         if not os.path.exists(grid_cell_zarr_path):
             msg = f'{grid_cell_zarr_path} does ' + \
                 'cannot be found or does not exist.'
             raise FileNotFoundError(msg)
         grid_cell_data_array = xr.from_zarr(grid_cell_zarr_path)
+
     grid_cell_shape = grid_cell_data_array.shape
     class_sums_shape = (grid_cell_shape[Y_AXIS], grid_cell_shape[X_AXIS],
                         num_classes)
+
     class_sums = np.zeros(class_sums_shape, dtype=HOST_DTYPE)
+
     for class_id, class_value in classes.items():
         class_binary_array = xr.where(
             grid_cell_data_array == class_value, 1, 0).astype(HOST_DTYPE)
         class_sums[:, :, class_id] = _get_sum(class_binary_array, logger).data
+
     mode = np.zeros(
         (class_sums.shape[Y_AXIS], class_sums.shape[X_AXIS]), dtype=HOST_DTYPE)
+
+    if calculate_nobservations:
+        nobs = np.zeros(
+            (class_sums.shape[Y_AXIS],
+             class_sums.shape[X_AXIS]), dtype=HOST_DTYPE)
+
     logger.info('Computing mode')
     st = time.time()
-    mode = _fast_iterate_mode(mode, class_sums)
-    et = time.time()
-    logger.info('Mode compute time {}'.format(round(et-st, 3)))
-    return mode
+
+    if calculate_nobservations:
+        mode, nobs = _fast_iterate_mode_nobs(mode, nobs, class_sums)
+
+        et = time.time()
+        logger.info('Mode compute time {}'.format(round(et-st, 3)))
+        return mode, nobs
+
+    else:
+        mode = _fast_iterate_mode(mode, class_sums)
+
+        et = time.time()
+        logger.info('Mode compute time {}'.format(round(et-st, 3)))
+        return mode

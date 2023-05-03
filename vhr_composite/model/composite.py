@@ -130,9 +130,10 @@ class Composite(object):
             concat_dataset = None
         return None
 
-    def generate_single_grid(self,
-                             tile: str,
-                             write_out: bool = False) -> Union[xr.Dataset, None]:
+    def generate_single_grid(
+            self,
+            tile: str,
+            write_out: bool = False) -> Union[xr.Dataset, None]:
         """
         Generate the gridded zarrs from a pre-calculated intersection
         of grid cells and 
@@ -207,7 +208,8 @@ class Composite(object):
             strip_data_array = rxr.open_rasterio(land_cover_path)
             cloud_mask_data_array = rxr.open_rasterio(cloud_mask_path)
         except rasterio.errors.RasterioIOError:
-            error_file = os.path.basename(land_cover_path).replace('.tif', '.txt')
+            error_file = os.path.basename(
+                land_cover_path).replace('.tif', '.txt')
             with open(error_file, 'w') as fh:
                 fh.writelines([land_cover_path+'\n'+cloud_mask_path+'\n'])
             return None
@@ -294,11 +296,98 @@ class Composite(object):
                             model_output_per_datetime_ndarray, mode)
         return mode
 
+    def calculate_mode(self,
+                       tile_path: str,
+                       tile_raster_output_path: str,
+                       classes: dict,
+                       rows_to_use: list,
+                       output_nobservations: bool = True,
+                       tile_dataset_input: xr.Dataset = None) -> None:
+        """
+        Given a landcover zarr or dataset, calculate the mode
+        and write to GTiff
+        """
+        tile_dataset = tile_dataset_input if tile_dataset_input \
+            else xr.open_zarr(tile_path)
+
+        variable_name = os.path.basename(tile_path).split('.zarr')[0]
+
+        name = f'{variable_name}.mode'
+
+        if os.path.exists(tile_raster_output_path):
+            self._logger.info(f'{tile_raster_output_path} already exists.')
+            return None
+
+        try:
+            # Select the array without the band, transpose to time-last format
+            tile_array = \
+                tile_dataset[variable_name].sel(time=rows_to_use)
+        except KeyError:
+            self._logger.error(
+                f'Could not find all times in passed {rows_to_use}')
+            return None
+
+        self._logger.info(tile_array.time)
+        tile_array = tile_array.sel(
+            band=BAND).transpose(Y, X, TIME)
+
+        # Make the coordinates that will be used to make the mode ndarray
+        # a xr.DataArray
+        coords = dict(
+            band=tile_dataset.band,
+            y=tile_dataset.y,
+            x=tile_dataset.x,
+            spatial_ref=tile_dataset.spatial_ref,
+        )
+
+        if output_nobservations:
+            self._logger.info('Calculating n-observations in addition to mode')
+            mode, nobs = self._calculate_mode(
+                tile_array,
+                classes,
+                output_nobservations,
+                logger=self._logger)
+            nobs_with_band = np.zeros((BAND, mode.shape[0], mode.shape[1]))
+            nobs_with_band[0, :, :] = nobs
+            nobs_data_array = self._make_data_array(nobs_with_band,
+                                                    coords,
+                                                    name)
+            nobs_name = f'{variable_name}.nobservations'
+            nobs_raster_output_path = \
+                tile_raster_output_path.replace('mode', 'nobservations')
+            self._logger.info(
+                f'Compute mode - Writing {nobs_name} ' +
+                f'to {nobs_raster_output_path}')
+            nobs_data_array.rio.to_raster(nobs_raster_output_path,
+                                          dtype=np.uint16,
+                                          compress='lzw')
+        else:
+            mode = self._calculate_mode(
+                tile_array, classes, logger=self._logger)
+
+        # Add the band to the mode
+        mode_with_band = np.zeros((BAND, mode.shape[0], mode.shape[1]))
+        mode_with_band[0, :, :] = mode
+
+        mode_data_array = self._make_data_array(mode_with_band,
+                                                coords,
+                                                name)
+
+        # Write to GTiff
+        self._logger.info(
+            f'Compute mode - Writing {name} to {tile_raster_output_path}')
+        mode_data_array.rio.to_raster(tile_raster_output_path,
+                                      dtype=np.uint8,
+                                      compress='lzw')
+        return None
+
     def calculate_mode_qa(self,
                           tile_path: str,
+                          tile_raster_output_path: str,
                           classes: dict,
                           passed_qa_datetimes: list,
                           not_passed_qa_datetimes: list,
+                          output_nobservations: bool = True,
                           tile_dataset_input: xr.Dataset = None) -> None:
         """
         Given a landcover zarr or dataset, calculate the mode
@@ -311,15 +400,14 @@ class Composite(object):
 
         name = f'{variable_name}.mode'
 
-        tile_raster_path = tile_path.replace('.zarr', '.mode.QAD.tif')
-
-        if os.path.exists(tile_raster_path):
-            self._logger.info(f'{tile_raster_path} already exists.')
+        if os.path.exists(tile_raster_output_path):
+            self._logger.info(f'{tile_raster_output_path} already exists.')
             return None
 
         try:
             # Select the array without the band, transpose to time-last format
-            tile_array = tile_dataset[variable_name].sel(time=passed_qa_datetimes)
+            tile_array = \
+                tile_dataset[variable_name].sel(time=passed_qa_datetimes)
         except KeyError:
             self._logger.error(
                 f'Could not find all times in passed {passed_qa_datetimes}')
@@ -331,24 +419,14 @@ class Composite(object):
                 time=not_passed_qa_datetimes)
         except KeyError:
             self._logger.error(
-                f'Could not find all times in not-passed {not_passed_qa_datetimes}'
+                'Could not find all times' +
+                f' in not-passed {not_passed_qa_datetimes}'
             )
             return None
         tile_array = tile_array.sel(
             band=BAND).transpose(Y, X, TIME)
 
         bad_tile_array = bad_tile_array.sel(band=BAND).transpose(Y, X, TIME)
-
-        mode = self._calculate_mode(tile_array, classes, logger=self._logger)
-
-        self._logger.info('Compute mode - Filling holes with bad data')
-        mode = self._add_non_qa_data(bad_tile_array, mode,
-                                     not_passed_qa_datetimes)
-        self._logger.info('Compute mode - Configuring mode to data array')
-
-        # Add the band to the mode
-        mode_with_band = np.zeros((BAND, mode.shape[0], mode.shape[1]))
-        mode_with_band[0, :, :] = mode
 
         # Make the coordinates that will be used to make the mode ndarray
         # a xr.DataArray
@@ -359,14 +437,48 @@ class Composite(object):
             spatial_ref=tile_dataset.spatial_ref,
         )
 
+        if output_nobservations:
+            self._logger.info('Calculating n-observations in addition to mode')
+            mode, nobs = self._calculate_mode(
+                tile_array,
+                classes,
+                output_nobservations,
+                logger=self._logger)
+            nobs_with_band = np.zeros((BAND, mode.shape[0], mode.shape[1]))
+            nobs_with_band[0, :, :] = nobs
+            nobs_data_array = self._make_data_array(nobs_with_band,
+                                                    coords,
+                                                    name)
+            nobs_name = f'{variable_name}.nobservations'
+            nobs_raster_output_path = \
+                tile_raster_output_path.replace('mode.QAD', 'nobservations')
+            self._logger.info(
+                f'Compute mode - Writing {nobs_name} ' +
+                f'to {nobs_raster_output_path}')
+            nobs_data_array.rio.to_raster(nobs_raster_output_path,
+                                          dtype=np.uint16,
+                                          compress='lzw')
+        else:
+            mode = self._calculate_mode(
+                tile_array, classes, logger=self._logger)
+
+        self._logger.info('Compute mode - Filling holes with bad data')
+        mode = self._add_non_qa_data(bad_tile_array, mode,
+                                     not_passed_qa_datetimes)
+        self._logger.info('Compute mode - Configuring mode to data array')
+
+        # Add the band to the mode
+        mode_with_band = np.zeros((BAND, mode.shape[0], mode.shape[1]))
+        mode_with_band[0, :, :] = mode
+
         mode_data_array = self._make_data_array(mode_with_band,
                                                 coords,
                                                 name)
 
         # Write to GTiff
         self._logger.info(
-            f'Compute mode - Writing {name} to {tile_raster_path}')
-        mode_data_array.rio.to_raster(tile_raster_path,
+            f'Compute mode - Writing {name} to {tile_raster_output_path}')
+        mode_data_array.rio.to_raster(tile_raster_output_path,
                                       dtype=np.uint8,
                                       compress='lzw')
         return None
@@ -437,11 +549,15 @@ class Composite(object):
 
     def _calculate_mode(self, tile_array: xr.DataArray,
                         classes: dict,
+                        calculate_nobservations: bool = True,
                         logger: logging.Logger = None):
         """
         Object-oriented wrapper for mode calculation function.
         """
-        return calculate_mode(tile_array, classes, logger=logger)
+        return calculate_mode(tile_array,
+                              classes,
+                              calculate_nobservations=calculate_nobservations,
+                              logger=logger)
 
     # --------------------------------------------------------------------------
     # SKELETON FUNCTION PT. 2

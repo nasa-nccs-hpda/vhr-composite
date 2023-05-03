@@ -37,25 +37,24 @@ def main():
     logger.addHandler(sh)
 
     # * Set some (hardcoded for now) variables
-    region = 'CAS'  # Assume for now we are doing one region at a time
+    region = 'ETZ'  # Assume for now we are doing one region at a time
     test_name = 'qaTest2'
     model_name = 'otcb.v5'
-    grid_cell_name_pre_str = 'CAS.M1BS'
-    start_year = 2016
-    end_year = 2023 # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
+    grid_cell_name_pre_str = 'ETZ.M1BS'
+    start_year = 2009  # 2016
+    end_year = 2016  # 2022 # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
     datetime_column = 'datetime'
 
-    output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/CAS/'
+    output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/ETZ/'
 
     grid_path = '/explore/nobackup/people/mwooten3/Senegal_LCLUC/' + \
         'Shapefiles/Grid/Senegal_Grid__all.shp'
-    metadataFootprints = 'CAS_M1BS_metadataGrid.gpkg'
+    metadataFootprints = 'ETZ_M1BS_metadataGrid.shp'
 
     # Add in our landcover products and cloud mask products to the metadata
     # footprints file. Because what's the point if we don't have some damn
     # LC products to work with.
-    lcDir = '/explore/nobackup/projects/3sl/development/' + \
-        'cnn_landcover/normalization/otcb.v5'
+    lcDir = '/explore/nobackup/projects/ilab/projects/Senegal/3sl/products/land_cover/dev/otcb.v1/ETZ/'
     cloudDir = '/explore/nobackup/projects/3sl/products/' + \
         'cloudmask/v1/{}'.format(region)  # CHanging to explore soon
 
