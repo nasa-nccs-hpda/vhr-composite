@@ -8,6 +8,8 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
+from osgeo import gdal
+
 from typing import Union
 
 from vhr_composite.model.metrics import calculate_mode
@@ -161,6 +163,9 @@ class Composite(object):
             datetimes, tiles_df))
         arrays = [array for array in arrays if array is not None]
 
+        if len(arrays) < 1:
+            return None
+
         concat_array = xr.concat(arrays, dim='time', fill_value=10)
         concat_dataset = concat_array.to_dataset(name=name)
         if write_out:
@@ -311,6 +316,7 @@ class Composite(object):
             else xr.open_zarr(tile_path)
 
         variable_name = os.path.basename(tile_path).split('.zarr')[0]
+        variable_name = variable_name.replace('ETZ', 'CAS')
 
         name = f'{variable_name}.mode'
 
@@ -352,7 +358,8 @@ class Composite(object):
             nobs_data_array = self._make_data_array(nobs_with_band,
                                                     coords,
                                                     name)
-            nobs_name = f'{variable_name}.nobservations'
+            variable_name = variable_name.replace('CAS', 'ETZ')
+            nobs_name = f'{variable_name}.nobservations.noqa'
             nobs_raster_output_path = \
                 tile_raster_output_path.replace('mode', 'nobservations')
             self._logger.info(
@@ -379,6 +386,9 @@ class Composite(object):
         mode_data_array.rio.to_raster(tile_raster_output_path,
                                       dtype=np.uint8,
                                       compress='lzw')
+        warpOptions = ['COMPRESS=LZW']
+        warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
+        _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
         return None
 
     def calculate_mode_qa(self,
@@ -397,6 +407,9 @@ class Composite(object):
             else xr.open_zarr(tile_path)
 
         variable_name = os.path.basename(tile_path).split('.zarr')[0]
+        variable_name = variable_name.replace('ETZ', 'CAS')
+
+        self._logger.info(variable_name)
 
         name = f'{variable_name}.mode'
 
@@ -408,9 +421,10 @@ class Composite(object):
             # Select the array without the band, transpose to time-last format
             tile_array = \
                 tile_dataset[variable_name].sel(time=passed_qa_datetimes)
-        except KeyError:
+        except KeyError as e:
+            print(e)
             self._logger.error(
-                f'Could not find all times in passed {passed_qa_datetimes}')
+                f'Good - Could not find all times in passed {passed_qa_datetimes}')
             return None
 
         self._logger.info(tile_array.time)
@@ -419,7 +433,7 @@ class Composite(object):
                 time=not_passed_qa_datetimes)
         except KeyError:
             self._logger.error(
-                'Could not find all times' +
+                'Bad - Could not find all times' +
                 f' in not-passed {not_passed_qa_datetimes}'
             )
             return None
@@ -449,6 +463,7 @@ class Composite(object):
             nobs_data_array = self._make_data_array(nobs_with_band,
                                                     coords,
                                                     name)
+            variable_name = variable_name.replace('CAS', 'ETZ')
             nobs_name = f'{variable_name}.nobservations'
             nobs_raster_output_path = \
                 tile_raster_output_path.replace('mode.QAD', 'nobservations')
@@ -481,6 +496,9 @@ class Composite(object):
         mode_data_array.rio.to_raster(tile_raster_output_path,
                                       dtype=np.uint8,
                                       compress='lzw')
+        warpOptions = ['COMPRESS=LZW']
+        warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
+        _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
         return None
 
     # --------------------------------------------------------------------------

@@ -11,7 +11,7 @@ echo Starting $1
 
 date
 
-python vhr-composite/scripts/senegal_calculate/vhr_senegal_generate_grid_by_epoch.py $1
+python vhr-composite/scripts/senegal_calculate/vhr_senegal_generate_grid.py $1
 
 date
 

@@ -10,10 +10,19 @@ from vhr_composite.model.composite import Composite
 from vhr_composite.model.utils import TqdmLoggingHandler
 
 
+def soilMoistureQA(tileDF):
+    goodSoilMoisture = tileDF['soilM_medi'] < 2800
+    badSoilMoisture = tileDF['soilM_medi'] >= 2800
+    goodDF = tileDF[goodSoilMoisture]
+    badDF = tileDF[badSoilMoisture]
+    badDF = badDF.sort_values(by='soilM_medi')
+    return goodDF, badDF
+
+
 def main():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    fh_name = f'grid-generation{os.path.basename(sys.argv[1])}'.replace(
+    fh_name = f'grid-generation-etz-{os.path.basename(sys.argv[1])}'.replace(
         '.txt', '.log')
     ch = logging.FileHandler(fh_name)
     sh = TqdmLoggingHandler()
@@ -28,25 +37,24 @@ def main():
     logger.addHandler(sh)
 
     # * Set some (hardcoded for now) variables
-    region = 'CAS'  # Assume for now we are doing one region at a time
+    region = 'ETZ'  # Assume for now we are doing one region at a time
     test_name = 'qaTest2'
     model_name = 'otcb.v5'
-    grid_cell_name_pre_str = 'CAS.M1BS'
+    grid_cell_name_pre_str = 'ETZ.M1BS'
     start_year = 2016
-    end_year = 2023  # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
+    end_year = 2023 # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
     datetime_column = 'datetime'
 
-    output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/CAS/'
+    output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/ETZ/'
 
     grid_path = '/explore/nobackup/people/mwooten3/Senegal_LCLUC/' + \
         'Shapefiles/Grid/Senegal_Grid__all.shp'
-    metadataFootprints = 'CAS_M1BS_metadataGrid.gpkg'
+    metadataFootprints = 'ETZ_M1BS_metadataGrid.shp'
 
     # Add in our landcover products and cloud mask products to the metadata
     # footprints file. Because what's the point if we don't have some damn
     # LC products to work with.
-    lcDir = '/explore/nobackup/projects/3sl/development/' + \
-        'cnn_landcover/normalization/otcb.v5'
+    lcDir = '/explore/nobackup/projects/ilab/projects/Senegal/3sl/products/land_cover/dev/otcb.v1/ETZ/'
     cloudDir = '/explore/nobackup/projects/3sl/products/' + \
         'cloudmask/v1/{}'.format(region)  # CHanging to explore soon
 
@@ -62,7 +70,7 @@ def main():
     # Set as columns in geodataframe
     metadata_gdf['landcover'] = list(map(lambda f: os.path.join(
         lcDir,
-        '{}-toa.otcb.tif'.format(f)),
+        '{}-toa.landcover.tif'.format(f)),
         metadata_gdf['strip_id']))
     metadata_gdf['cloudmask'] = list(map(lambda f: os.path.join(
         cloudDir,
@@ -135,12 +143,14 @@ def main():
         tile_grid_dataset = composite.generate_single_grid(tile,
                                                            write_out=True)
 
+        if not tile_grid_dataset:
+            continue
+
         metadata_per_tile_filtered = \
             metadata_gdf_filtered[metadata_gdf_filtered['tile'] == tile]
 
         len_filtered_strips = len(metadata_per_tile_filtered)
-        logger.info(
-            f'Number of filtered strips in {tile}: {len_filtered_strips}')
+        logger.info(f'Number of filtered strips in {tile}: {len_filtered_strips}')
         if len_filtered_strips < 1:
             continue
 
