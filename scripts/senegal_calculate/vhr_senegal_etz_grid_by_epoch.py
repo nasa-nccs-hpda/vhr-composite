@@ -22,7 +22,7 @@ def soilMoistureQA(tileDF):
 def main():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    fh_name = f'grid-generation{os.path.basename(sys.argv[1])}'.replace(
+    fh_name = f'grid-generation-etz-{os.path.basename(sys.argv[1])}'.replace(
         '.txt', '.log')
     ch = logging.FileHandler(fh_name)
     sh = TqdmLoggingHandler()
@@ -41,8 +41,8 @@ def main():
     test_name = 'qaTest2'
     model_name = 'otcb.v5'
     grid_cell_name_pre_str = 'ETZ.M1BS'
-    start_year = 2009  # 2016
-    end_year = 2016  # 2022 # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
+    start_year = 2016
+    end_year = 2023 # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
     datetime_column = 'datetime'
 
     output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/ETZ/'
@@ -70,7 +70,7 @@ def main():
     # Set as columns in geodataframe
     metadata_gdf['landcover'] = list(map(lambda f: os.path.join(
         lcDir,
-        '{}-toa.otcb.tif'.format(f)),
+        '{}-toa.landcover.tif'.format(f)),
         metadata_gdf['strip_id']))
     metadata_gdf['cloudmask'] = list(map(lambda f: os.path.join(
         cloudDir,
@@ -143,6 +143,9 @@ def main():
         tile_grid_dataset = composite.generate_single_grid(tile,
                                                            write_out=True)
 
+        if not tile_grid_dataset:
+            continue
+
         metadata_per_tile_filtered = \
             metadata_gdf_filtered[metadata_gdf_filtered['tile'] == tile]
 
@@ -158,13 +161,18 @@ def main():
         # i.e. the lowest soil moisture first
         bad = bad.sort_values(by='soilM_medi')
 
+        passed_qa_datetimes = list(good.datetime.values)
+        not_passed_qa_datetimes = list(bad.datetime.values)
+        tile_grid_dataset.sel(time=passed_qa_datetimes)
+        tile_grid_dataset.sel(time=not_passed_qa_datetimes)
+        logger.info(len(passed_qa_datetimes))
+        logger.info(len(not_passed_qa_datetimes))
+
         composite.calculate_mode_qa(tile_path=tile_path,
                                     tile_raster_output_path=tile_raster_path,
                                     classes=classes,
-                                    passed_qa_datetimes=list(
-                                        good.datetime.values),
-                                    not_passed_qa_datetimes=list(
-                                        bad.datetime.values),
+                                    passed_qa_datetimes=passed_qa_datetimes,
+                                    not_passed_qa_datetimes=not_passed_qa_datetimes,
                                     tile_dataset_input=tile_grid_dataset)
 
 
