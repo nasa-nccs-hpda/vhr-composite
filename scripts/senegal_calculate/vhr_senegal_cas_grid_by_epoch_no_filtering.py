@@ -42,7 +42,7 @@ def main():
     model_name = 'otcb.v5'
     grid_cell_name_pre_str = 'CAS.M1BS'
     start_year = 2016
-    end_year = 2023 # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
+    end_year = 2023  # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
     datetime_column = 'datetime'
 
     output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/CAS/'
@@ -133,7 +133,7 @@ def main():
 
         mode_name = f'.{start_year}.{end_year}.mode'
 
-        tile_raster_path = tile_path.replace('.zarr', f'{mode_name}.QAD.tif')
+        tile_raster_path = tile_path.replace('.zarr', f'{mode_name}.tif')
         logger.info(tile_raster_path)
 
         # Don't do more work than we have to. Woo!
@@ -148,25 +148,17 @@ def main():
             metadata_gdf_filtered[metadata_gdf_filtered['tile'] == tile]
 
         len_filtered_strips = len(metadata_per_tile_filtered)
-        logger.info(f'Number of filtered strips in {tile}: {len_filtered_strips}')
+        logger.info(
+            f'Number of filtered strips in {tile}: {len_filtered_strips}')
         if len_filtered_strips < 1:
             continue
 
-        # Use the updated GDF to further filter by soil moisture QA
-        good, bad = soilMoistureQA(metadata_per_tile_filtered)
-
-        # When filling wholes we want to start with the "best" of the bad
-        # i.e. the lowest soil moisture first
-        bad = bad.sort_values(by='soilM_medi')
-
-        composite.calculate_mode_qa(tile_path=tile_path,
-                                    tile_raster_output_path=tile_raster_path,
-                                    classes=classes,
-                                    passed_qa_datetimes=list(
-                                        good.datetime.values),
-                                    not_passed_qa_datetimes=list(
-                                        bad.datetime.values),
-                                    tile_dataset_input=tile_grid_dataset)
+        composite.calculate_mode(tile_path=tile_path,
+                                 tile_raster_output_path=tile_raster_path,
+                                 classes=classes,
+                                 rows_to_use=list(
+                                     metadata_per_tile_filtered.datetime.values),
+                                 tile_dataset_input=tile_grid_dataset)
 
 
 if __name__ == '__main__':
