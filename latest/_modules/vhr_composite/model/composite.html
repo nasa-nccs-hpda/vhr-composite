@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vhr_composite.model.composite &mdash; vhr-composite 0.0.1 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            vhr-composite
+          </a>
+              <div class="version">
+                0.0.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">vhr-composite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">vhr-composite package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">vhr-composite</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">vhr_composite.model.composite</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for vhr_composite.model.composite</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">tqdm</span>
+<span class="kn">import</span> <span class="nn">rasterio</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">import</span> <span class="nn">rioxarray</span> <span class="k">as</span> <span class="nn">rxr</span>
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">from</span> <span class="nn">vhr_composite.model.metrics</span> <span class="kn">import</span> <span class="n">calculate_mode</span>
+<span class="kn">from</span> <span class="nn">vhr_composite.model.metrics</span> <span class="kn">import</span> <span class="n">calculate_alg</span>
+<span class="kn">from</span> <span class="nn">vhr_composite.model.metrics</span> <span class="kn">import</span> <span class="n">CLASS_0</span><span class="p">,</span> <span class="n">CLASS_1</span><span class="p">,</span> <span class="n">CLASS_2</span>
+<span class="kn">from</span> <span class="nn">vhr_composite.model.metrics</span> <span class="kn">import</span> <span class="n">CLASS_0_ALIAS</span><span class="p">,</span> <span class="n">CLASS_1_ALIAS</span><span class="p">,</span> <span class="n">CLASS_2_ALIAS</span>
+
+<span class="n">TIME</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span>
+<span class="n">X</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span>
+<span class="n">Y</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;y&quot;</span>
+<span class="n">BAND</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">CLOUD_CLEAR_VALUE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">NO_DATA</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">255</span>
+<span class="n">OTHER_DATA</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">FILL_DATA</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">BURN_AREA_VALUE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">STRIP_FILE_PATH_KEY</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;landcover&#39;</span>
+<span class="n">MASK_FILE_PATH_KEY</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;cloudmask&#39;</span>
+<span class="n">GRID_CELL_NAME_PRE_STR</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;CAS.M1BS&#39;</span>
+<span class="n">DIM</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span>
+
+
+<div class="viewcode-block" id="Composite"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite">[docs]</a><span class="k">class</span> <span class="nc">Composite</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">grid_geopackage_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">model_output_geopackage_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">output_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes the Composite object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_grid_geopackage_path</span> <span class="o">=</span> <span class="n">grid_geopackage_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model_output_geopackage_path</span> <span class="o">=</span> <span class="n">model_output_geopackage_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">logger</span>
+
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="o">=</span> <span class="n">output_dir</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_geopackage_path</span><span class="p">)</span> <span class="ow">or</span> \
+                <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_output_geopackage_path</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> does not exist&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_geopackage_path</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_geopackage_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span> <span class="o">=</span> \
+            <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_output_geopackage_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Composite.generate_grid_via_intersect"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.generate_grid_via_intersect">[docs]</a>    <span class="k">def</span> <span class="nf">generate_grid_via_intersect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calculate_mode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                                    <span class="n">classes</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the gridded zarrs from the strips that intersect</span>
+<span class="sd">        each grid cell</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calculating intersect&#39;</span><span class="p">)</span>
+        <span class="n">intersection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_intersection</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="o">.</span><span class="n">tqdm</span><span class="p">(</span><span class="n">intersection</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">tile_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tile</span><span class="p">]</span>
+            <span class="n">tiles_df</span> <span class="o">=</span> <span class="p">[</span><span class="n">tile_df</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">intersection</span><span class="p">[</span><span class="n">tile</span><span class="p">]))]</span>
+            <span class="n">strips</span> <span class="o">=</span> <span class="n">intersection</span><span class="p">[</span><span class="n">tile</span><span class="p">]</span>
+            <span class="n">landcovers</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;landcover&#39;</span><span class="p">]</span>
+            <span class="n">cloudmasks</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;cloudmask&#39;</span><span class="p">]</span>
+            <span class="n">datetimes</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;datetime&#39;</span><span class="p">]</span>
+            <span class="n">arrays</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">Composite</span><span class="o">.</span><span class="n">strip_to_grid</span><span class="p">,</span>
+                              <span class="n">landcovers</span><span class="p">,</span> <span class="n">cloudmasks</span><span class="p">,</span>
+                              <span class="n">datetimes</span><span class="p">,</span> <span class="n">tiles_df</span><span class="p">))</span>
+            <span class="n">arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">array</span> <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span> <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;CAS.M1BS.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
+            <span class="n">concat_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">arrays</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="n">concat_dataset</span> <span class="o">=</span> <span class="n">concat_array</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">tile_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.zarr&#39;</span><span class="p">)</span>
+            <span class="n">concat_dataset</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+            <span class="c1"># Take this part out, too much going on</span>
+            <span class="k">if</span> <span class="n">calculate_mode</span> <span class="ow">and</span> <span class="n">classes</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mode_per_tile</span><span class="p">(</span><span class="n">tile_path</span><span class="o">=</span><span class="n">tile_path</span><span class="p">,</span>
+                                             <span class="n">classes</span><span class="o">=</span><span class="n">classes</span><span class="p">,</span>
+                                             <span class="n">tile_dataset_input</span><span class="o">=</span><span class="n">concat_dataset</span><span class="p">,</span>
+                                             <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Composite.generate_grid"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.generate_grid">[docs]</a>    <span class="k">def</span> <span class="nf">generate_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tile_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the gridded zarrs from a pre-calculated intersection</span>
+<span class="sd">        of grid cells and </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="o">.</span><span class="n">tqdm</span><span class="p">(</span><span class="n">tile_list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">- Processing </span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">GRID_CELL_NAME_PRE_STR</span><span class="p">,</span> <span class="n">tile</span><span class="p">)</span>
+            <span class="n">tile_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.zarr&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">tile_path</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">- </span><span class="si">{</span><span class="n">tile_path</span><span class="si">}</span><span class="s1"> already exists&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">tile_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tile</span><span class="p">]</span>
+            <span class="n">strips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span><span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tile</span><span class="p">]</span>
+            <span class="n">len_strips</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">strips</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">- Processing </span><span class="si">{</span><span class="n">len_strips</span><span class="si">}</span><span class="s1"> strips&#39;</span><span class="p">)</span>
+            <span class="n">tiles_df</span> <span class="o">=</span> <span class="p">[</span><span class="n">tile_df</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">len_strips</span><span class="p">)]</span>
+            <span class="n">landcovers</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;landcover&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+            <span class="n">cloudmasks</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;cloudmask&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+            <span class="n">datetimes</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;datetime&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+            <span class="k">if</span> <span class="n">len_strips</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">arrays</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span>
+                <span class="n">Composite</span><span class="o">.</span><span class="n">strip_to_grid</span><span class="p">,</span>
+                <span class="n">landcovers</span><span class="p">,</span> <span class="n">cloudmasks</span><span class="p">,</span>
+                <span class="n">datetimes</span><span class="p">,</span> <span class="n">tiles_df</span><span class="p">))</span>
+            <span class="n">arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">array</span> <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span> <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+            <span class="n">concat_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">arrays</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="n">concat_dataset</span> <span class="o">=</span> <span class="n">concat_array</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">-Writing to </span><span class="si">{</span><span class="n">tile_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">concat_dataset</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+            <span class="n">arrays</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">concat_array</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">concat_dataset</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Composite.generate_single_grid"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.generate_single_grid">[docs]</a>    <span class="k">def</span> <span class="nf">generate_single_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                             <span class="n">tile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                             <span class="n">write_out</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the gridded zarrs from a pre-calculated intersection</span>
+<span class="sd">        of grid cells and </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">- Processing </span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">GRID_CELL_NAME_PRE_STR</span><span class="p">,</span> <span class="n">tile</span><span class="p">)</span>
+        <span class="n">tile_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.zarr&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">tile_path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">- </span><span class="si">{</span><span class="n">tile_path</span><span class="si">}</span><span class="s1"> already exists&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+        <span class="n">tile_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tile</span><span class="p">]</span>
+        <span class="n">strips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tile</span><span class="p">]</span>
+        <span class="n">len_strips</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">strips</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">- Processing </span><span class="si">{</span><span class="n">len_strips</span><span class="si">}</span><span class="s1"> strips&#39;</span><span class="p">)</span>
+        <span class="n">tiles_df</span> <span class="o">=</span> <span class="p">[</span><span class="n">tile_df</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">len_strips</span><span class="p">)]</span>
+        <span class="n">landcovers</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;landcover&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">cloudmasks</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;cloudmask&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">datetimes</span> <span class="o">=</span> <span class="n">strips</span><span class="p">[</span><span class="s1">&#39;datetime&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="k">if</span> <span class="n">len_strips</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">arrays</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span>
+            <span class="n">Composite</span><span class="o">.</span><span class="n">strip_to_grid</span><span class="p">,</span>
+            <span class="n">landcovers</span><span class="p">,</span> <span class="n">cloudmasks</span><span class="p">,</span>
+            <span class="n">datetimes</span><span class="p">,</span> <span class="n">tiles_df</span><span class="p">))</span>
+        <span class="n">arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">array</span> <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span> <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="n">concat_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">arrays</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">concat_dataset</span> <span class="o">=</span> <span class="n">concat_array</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">write_out</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile</span><span class="si">}</span><span class="s1">-Writing to </span><span class="si">{</span><span class="n">tile_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">concat_dataset</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">concat_dataset</span>
+        <span class="n">arrays</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">concat_array</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">concat_dataset</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_intersection</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For each grid cell, find the strips that intersect</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">intersection_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="o">.</span><span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">))):</span>
+            <span class="n">intersects</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">shp</span><span class="p">:</span> <span class="n">shp</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;geometry&#39;</span><span class="p">]))</span>
+            <span class="n">does_intersect</span> <span class="o">=</span> <span class="n">intersects</span><span class="p">[</span><span class="n">intersects</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">does_intersect</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">intersection_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;tile&#39;</span><span class="p">]]</span> <span class="o">=</span> \
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_model_output</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">does_intersect</span><span class="o">.</span><span class="n">index</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">intersection_dict</span><span class="p">)</span><span class="si">}</span><span class="s1"> intersections&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">intersection_dict</span>
+
+<div class="viewcode-block" id="Composite.strip_to_grid"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.strip_to_grid">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">strip_to_grid</span><span class="p">(</span>
+            <span class="n">land_cover_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">cloud_mask_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">timestamp</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">_libs</span><span class="o">.</span><span class="n">tslibs</span><span class="o">.</span><span class="n">timestamps</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">,</span>
+            <span class="n">grid_geodataframe</span><span class="p">:</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function opens a strip and clips it to a given geometry</span>
+<span class="sd">        and performs some basic quality assurance checking.</span>
+
+<span class="sd">        :param strip_path: str, the file path for the strip to read and clip</span>
+<span class="sd">        :param cloud_mask_path: str, the file path for the corresponding</span>
+<span class="sd">        cloud mask</span>
+<span class="sd">        :param timestamp: the time-stamp for the</span>
+<span class="sd">        :param grid_geodataframe: geopandas.DataFrame, the dataframe whose</span>
+<span class="sd">        geometry is used to clip the strip to</span>
+<span class="sd">        :return: rioxarray.DataArray, the clipped DataArray strip</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">strip_data_array</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">land_cover_path</span><span class="p">)</span>
+            <span class="n">cloud_mask_data_array</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">cloud_mask_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">RasterioIOError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">geometry_to_clip</span> <span class="o">=</span> <span class="n">grid_geodataframe</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">geometry_crs</span> <span class="o">=</span> <span class="n">grid_geodataframe</span><span class="o">.</span><span class="n">crs</span>
+        <span class="n">strip_data_array</span> <span class="o">=</span> <span class="n">strip_data_array</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">geometry_to_clip</span><span class="p">,</span>
+                                                     <span class="n">crs</span><span class="o">=</span><span class="n">geometry_crs</span><span class="p">)</span>
+
+        <span class="n">strip_data_array</span> <span class="o">=</span> <span class="n">strip_data_array</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="n">timestamp</span><span class="p">)</span>
+        <span class="n">strip_data_array</span> <span class="o">=</span> <span class="n">strip_data_array</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="n">TIME</span><span class="p">)</span>
+        <span class="n">strip_data_array</span> <span class="o">=</span> <span class="n">strip_data_array</span><span class="o">.</span><span class="n">where</span><span class="p">((</span>
+            <span class="p">(</span><span class="n">cloud_mask_data_array</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span>
+            <span class="p">(</span><span class="n">strip_data_array</span> <span class="o">!=</span> <span class="n">BURN_AREA_VALUE</span><span class="p">)</span> <span class="o">&amp;</span>
+            <span class="p">(</span><span class="n">strip_data_array</span> <span class="o">!=</span> <span class="n">NO_DATA</span><span class="p">)</span>
+        <span class="p">),</span> <span class="n">other</span><span class="o">=</span><span class="n">OTHER_DATA</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">strip_data_array</span></div>
+
+<div class="viewcode-block" id="Composite.calculate_mode_per_tile"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.calculate_mode_per_tile">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_mode_per_tile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                <span class="n">tile_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">classes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                <span class="n">tile_dataset_input</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a landcover zarr or dataset, calculate the mode</span>
+<span class="sd">        and write to GTiff</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset_input</span> <span class="k">if</span> <span class="n">tile_dataset_input</span> \
+            <span class="k">else</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+        <span class="n">variable_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.zarr&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Select the array without the band, transpose to time-last format</span>
+        <span class="n">tile_array</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span>
+            <span class="n">band</span><span class="o">=</span><span class="n">BAND</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">TIME</span><span class="p">)</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mode</span><span class="p">(</span><span class="n">tile_array</span><span class="p">,</span> <span class="n">classes</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Compute mode - Configuring mode to data array&#39;</span><span class="p">)</span>
+        <span class="c1"># Add the band to the mode</span>
+        <span class="n">mode_with_band</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">BAND</span><span class="p">,</span> <span class="n">mode</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">mode_with_band</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">mode</span>
+
+        <span class="c1"># Make the coordinates that will be used to make the mode ndarray</span>
+        <span class="c1"># a xr.DataArray</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">band</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">band</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+            <span class="n">spatial_ref</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">spatial_ref</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.mode.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">variable_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiment_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Compute mode - Appending </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> to </span><span class="si">{</span><span class="n">tile_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">mode_data_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_data_array</span><span class="p">(</span><span class="n">mode_with_band</span><span class="p">,</span>
+                                                <span class="n">coords</span><span class="p">,</span>
+                                                <span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># Write to GTiff</span>
+        <span class="n">tile_raster_path</span> <span class="o">=</span> <span class="n">tile_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.zarr&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.tif&#39;</span><span class="p">)</span>
+        <span class="n">mode_data_array</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">to_raster</span><span class="p">(</span><span class="n">tile_raster_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+    <span class="k">def</span> <span class="nf">_add_non_qa_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                         <span class="n">tile_datarray</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
+                         <span class="n">mode</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                         <span class="n">not_passed_qa_datetimes</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">qa_datetime_to_select</span> <span class="ow">in</span> <span class="n">not_passed_qa_datetimes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">mode</span> <span class="o">==</span> <span class="n">OTHER_DATA</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No more nodata, exiting&#39;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">model_output_per_datetime</span> <span class="o">=</span> <span class="n">tile_datarray</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span>
+                <span class="n">time</span><span class="o">=</span><span class="n">qa_datetime_to_select</span><span class="p">)</span>
+            <span class="n">model_output_per_datetime_ndarray</span> <span class="o">=</span> \
+                <span class="n">model_output_per_datetime</span><span class="o">.</span><span class="n">values</span>
+            <span class="n">model_output_per_datetime_ndarray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">model_output_per_datetime_ndarray</span> <span class="o">==</span> <span class="n">CLASS_0</span><span class="p">,</span>
+                <span class="n">CLASS_0_ALIAS</span><span class="p">,</span>
+                <span class="n">model_output_per_datetime_ndarray</span><span class="p">)</span>
+            <span class="n">model_output_per_datetime_ndarray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">model_output_per_datetime_ndarray</span> <span class="o">==</span> <span class="n">CLASS_1</span><span class="p">,</span>
+                <span class="n">CLASS_1_ALIAS</span><span class="p">,</span>
+                <span class="n">model_output_per_datetime_ndarray</span><span class="p">)</span>
+            <span class="n">model_output_per_datetime_ndarray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">model_output_per_datetime_ndarray</span> <span class="o">==</span> <span class="n">CLASS_2</span><span class="p">,</span>
+                <span class="n">CLASS_2_ALIAS</span><span class="p">,</span>
+                <span class="n">model_output_per_datetime_ndarray</span><span class="p">)</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mode</span> <span class="o">==</span> <span class="n">OTHER_DATA</span><span class="p">,</span>
+                            <span class="n">model_output_per_datetime_ndarray</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mode</span>
+
+<div class="viewcode-block" id="Composite.calculate_mode_qa"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.calculate_mode_qa">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_mode_qa</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">tile_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                          <span class="n">classes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                          <span class="n">passed_qa_datetimes</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+                          <span class="n">not_passed_qa_datetimes</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+                          <span class="n">tile_dataset_input</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a landcover zarr or dataset, calculate the mode</span>
+<span class="sd">        and write to GTiff</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset_input</span> <span class="k">if</span> <span class="n">tile_dataset_input</span> \
+            <span class="k">else</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+
+        <span class="n">variable_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.zarr&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s1">.mode&#39;</span>
+
+        <span class="n">tile_raster_path</span> <span class="o">=</span> <span class="n">tile_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.zarr&#39;</span><span class="p">,</span> <span class="s1">&#39;.mode.QAD.tif&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">tile_raster_path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">tile_raster_path</span><span class="si">}</span><span class="s1"> already exists.&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Select the array without the band, transpose to time-last format</span>
+        <span class="n">tile_array</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="n">passed_qa_datetimes</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">tile_array</span><span class="o">.</span><span class="n">time</span><span class="p">)</span>
+
+        <span class="n">bad_tile_array</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span>
+            <span class="n">time</span><span class="o">=</span><span class="n">not_passed_qa_datetimes</span><span class="p">)</span>
+
+        <span class="n">tile_array</span> <span class="o">=</span> <span class="n">tile_array</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span>
+            <span class="n">band</span><span class="o">=</span><span class="n">BAND</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">TIME</span><span class="p">)</span>
+
+        <span class="n">bad_tile_array</span> <span class="o">=</span> <span class="n">bad_tile_array</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">band</span><span class="o">=</span><span class="n">BAND</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">TIME</span><span class="p">)</span>
+
+        <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mode</span><span class="p">(</span><span class="n">tile_array</span><span class="p">,</span> <span class="n">classes</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Compute mode - Filling holes with bad data&#39;</span><span class="p">)</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_non_qa_data</span><span class="p">(</span><span class="n">bad_tile_array</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span>
+                                     <span class="n">not_passed_qa_datetimes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Compute mode - Configuring mode to data array&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Add the band to the mode</span>
+        <span class="n">mode_with_band</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">BAND</span><span class="p">,</span> <span class="n">mode</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">mode_with_band</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">mode</span>
+
+        <span class="c1"># Make the coordinates that will be used to make the mode ndarray</span>
+        <span class="c1"># a xr.DataArray</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">band</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">band</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+            <span class="n">spatial_ref</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">spatial_ref</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">mode_data_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_data_array</span><span class="p">(</span><span class="n">mode_with_band</span><span class="p">,</span>
+                                                <span class="n">coords</span><span class="p">,</span>
+                                                <span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># Write to GTiff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Compute mode - Writing </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> to </span><span class="si">{</span><span class="n">tile_raster_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">mode_data_array</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">to_raster</span><span class="p">(</span><span class="n">tile_raster_path</span><span class="p">,</span>
+                                      <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span>
+                                      <span class="n">compress</span><span class="o">=</span><span class="s1">&#39;lzw&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+    <span class="c1"># --------------------------------------------------------------------------</span>
+    <span class="c1"># SKELETON FUNCTION PT. 1</span>
+    <span class="c1"># Change function name to fit alg</span>
+    <span class="c1"># Change &quot;alg&quot; out with whatever you&#39;re doing</span>
+    <span class="c1"># --------------------------------------------------------------------------</span>
+<div class="viewcode-block" id="Composite.calculate_algorithm_per_tile"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.composite.Composite.calculate_algorithm_per_tile">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_algorithm_per_tile</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">tile_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">tile_dataset_input</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a landcover zarr or dataset, calculate the mode</span>
+<span class="sd">        and write to GTiff</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset_input</span> <span class="k">if</span> <span class="n">tile_dataset_input</span> \
+            <span class="k">else</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_zarr</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span>
+        <span class="n">variable_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">tile_path</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.zarr&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Select the array without the band, transpose to time-last format</span>
+        <span class="n">tile_array</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span>
+            <span class="n">band</span><span class="o">=</span><span class="n">BAND</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">TIME</span><span class="p">)</span>
+        <span class="n">output_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_alg</span><span class="p">(</span><span class="n">tile_array</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Compute alg&#39;</span><span class="p">)</span>
+        <span class="c1"># Add the band to the mode</span>
+        <span class="n">output_array_with_band</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">BAND</span><span class="p">,</span> <span class="n">output_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                           <span class="n">output_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">output_array_with_band</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">output_array</span>
+
+        <span class="c1"># Make the coordinates that will be used to make the mode ndarray</span>
+        <span class="c1"># a xr.DataArray</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">band</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">band</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+            <span class="n">spatial_ref</span><span class="o">=</span><span class="n">tile_dataset</span><span class="o">.</span><span class="n">spatial_ref</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.alg.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">variable_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiment_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Compute alg - Appending </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> to </span><span class="si">{</span><span class="n">tile_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">mode_data_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_data_array</span><span class="p">(</span><span class="n">output_array_with_band</span><span class="p">,</span>
+                                                <span class="n">coords</span><span class="p">,</span>
+                                                <span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># Write to GTiff</span>
+        <span class="n">tile_raster_path</span> <span class="o">=</span> <span class="n">tile_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.zarr&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.tif&#39;</span><span class="p">)</span>
+        <span class="n">mode_data_array</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">to_raster</span><span class="p">(</span><span class="n">tile_raster_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+    <span class="k">def</span> <span class="nf">_make_data_array</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">ndarray</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">coords</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a ndarray, make it a Xarray DataArray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;band&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">],</span>
+            <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
+            <span class="n">attrs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Mode of model results&quot;</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">data_array</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">return</span> <span class="n">data_array</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tile_array</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
+                        <span class="n">classes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                        <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Object-oriented wrapper for mode calculation function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">calculate_mode</span><span class="p">(</span><span class="n">tile_array</span><span class="p">,</span> <span class="n">classes</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+    <span class="c1"># --------------------------------------------------------------------------</span>
+    <span class="c1"># SKELETON FUNCTION PT. 2</span>
+    <span class="c1"># Change function name to fit alg</span>
+    <span class="c1"># Change &quot;alg&quot; out with whatever you&#39;re doing</span>
+    <span class="c1"># --------------------------------------------------------------------------</span>
+    <span class="k">def</span> <span class="nf">_calculate_alg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tile_array</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
+                       <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Object-oriented wrapper for skeleton alg function</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">calculate_alg</span><span class="p">(</span><span class="n">tile_array</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Caleb S. Spradlin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

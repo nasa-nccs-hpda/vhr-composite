@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vhr-composite package &mdash; vhr-composite 0.0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="vhr-composite" href="readme.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            vhr-composite
+          </a>
+              <div class="version">
+                0.0.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">vhr-composite</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">vhr-composite package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-vhr_composite.model.composite">vhr_composite.model.composite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#vhr_composite.model.composite.Composite"><code class="docutils literal notranslate"><span class="pre">Composite</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.calculate_algorithm_per_tile"><code class="docutils literal notranslate"><span class="pre">Composite.calculate_algorithm_per_tile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.calculate_mode_per_tile"><code class="docutils literal notranslate"><span class="pre">Composite.calculate_mode_per_tile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.calculate_mode_qa"><code class="docutils literal notranslate"><span class="pre">Composite.calculate_mode_qa()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.generate_grid"><code class="docutils literal notranslate"><span class="pre">Composite.generate_grid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.generate_grid_via_intersect"><code class="docutils literal notranslate"><span class="pre">Composite.generate_grid_via_intersect()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.generate_single_grid"><code class="docutils literal notranslate"><span class="pre">Composite.generate_single_grid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.composite.Composite.strip_to_grid"><code class="docutils literal notranslate"><span class="pre">Composite.strip_to_grid()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-vhr_composite.model.metrics">vhr_composite.model.metrics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#vhr_composite.model.metrics.calculate_alg"><code class="docutils literal notranslate"><span class="pre">calculate_alg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#vhr_composite.model.metrics.calculate_mode"><code class="docutils literal notranslate"><span class="pre">calculate_mode()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-vhr_composite.model.post_process">vhr_composite.model.post_process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-vhr_composite.model.utils">vhr_composite.model.utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#vhr_composite.model.utils.TqdmLoggingHandler"><code class="docutils literal notranslate"><span class="pre">TqdmLoggingHandler</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#vhr_composite.model.utils.TqdmLoggingHandler.emit"><code class="docutils literal notranslate"><span class="pre">TqdmLoggingHandler.emit()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#vhr_composite.model.utils.get_post_str"><code class="docutils literal notranslate"><span class="pre">get_post_str()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">vhr-composite</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">vhr-composite package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/modules.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="vhr-composite-package">
+<h1>vhr-composite package<a class="headerlink" href="#vhr-composite-package" title="Permalink to this heading"></a></h1>
+<div class="section" id="module-vhr_composite.model.composite">
+<span id="vhr-composite-model-composite"></span><h2>vhr_composite.model.composite<a class="headerlink" href="#module-vhr_composite.model.composite" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">vhr_composite.model.composite.</span></span><span class="sig-name descname"><span class="pre">Composite</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_geopackage_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_output_geopackage_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.calculate_algorithm_per_tile">
+<span class="sig-name descname"><span class="pre">calculate_algorithm_per_tile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_dataset_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.calculate_algorithm_per_tile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.calculate_algorithm_per_tile" title="Permalink to this definition"></a></dt>
+<dd><p>Given a landcover zarr or dataset, calculate the mode
+and write to GTiff</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.calculate_mode_per_tile">
+<span class="sig-name descname"><span class="pre">calculate_mode_per_tile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_dataset_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.calculate_mode_per_tile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.calculate_mode_per_tile" title="Permalink to this definition"></a></dt>
+<dd><p>Given a landcover zarr or dataset, calculate the mode
+and write to GTiff</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.calculate_mode_qa">
+<span class="sig-name descname"><span class="pre">calculate_mode_qa</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">passed_qa_datetimes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_passed_qa_datetimes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_dataset_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.calculate_mode_qa"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.calculate_mode_qa" title="Permalink to this definition"></a></dt>
+<dd><p>Given a landcover zarr or dataset, calculate the mode
+and write to GTiff</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.generate_grid">
+<span class="sig-name descname"><span class="pre">generate_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.generate_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.generate_grid" title="Permalink to this definition"></a></dt>
+<dd><p>Generate the gridded zarrs from a pre-calculated intersection
+of grid cells and</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.generate_grid_via_intersect">
+<span class="sig-name descname"><span class="pre">generate_grid_via_intersect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">calculate_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.generate_grid_via_intersect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.generate_grid_via_intersect" title="Permalink to this definition"></a></dt>
+<dd><p>Generate the gridded zarrs from the strips that intersect
+each grid cell</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.generate_single_grid">
+<span class="sig-name descname"><span class="pre">generate_single_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.generate_single_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.generate_single_grid" title="Permalink to this definition"></a></dt>
+<dd><p>Generate the gridded zarrs from a pre-calculated intersection
+of grid cells and</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html#xarray.Dataset" title="(in xarray v2023.6.1.dev0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.composite.Composite.strip_to_grid">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">strip_to_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">land_cover_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cloud_mask_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_geodataframe</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/composite.html#Composite.strip_to_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.composite.Composite.strip_to_grid" title="Permalink to this definition"></a></dt>
+<dd><p>This function opens a strip and clips it to a given geometry
+and performs some basic quality assurance checking.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>strip_path</strong> – str, the file path for the strip to read and clip</p></li>
+<li><p><strong>cloud_mask_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – str, the file path for the corresponding</p></li>
+</ul>
+</dd>
+</dl>
+<p>cloud mask
+:type timestamp: <code class="xref py py-class docutils literal notranslate"><span class="pre">Timestamp</span></code>
+:param timestamp: the time-stamp for the
+:type grid_geodataframe: <code class="xref py py-class docutils literal notranslate"><span class="pre">GeoDataFrame</span></code>
+:param grid_geodataframe: geopandas.DataFrame, the dataframe whose
+geometry is used to clip the strip to
+:rtype: <code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2023.6.1.dev0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code></a>]
+:return: rioxarray.DataArray, the clipped DataArray strip</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vhr_composite.model.metrics">
+<span id="vhr-composite-model-metrics"></span><h2>vhr_composite.model.metrics<a class="headerlink" href="#module-vhr_composite.model.metrics" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="vhr_composite.model.metrics.calculate_alg">
+<span class="sig-prename descclassname"><span class="pre">vhr_composite.model.metrics.</span></span><span class="sig-name descname"><span class="pre">calculate_alg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_cell_data_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_disk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_cell_zarr_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/metrics.html#calculate_alg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.metrics.calculate_alg" title="Permalink to this definition"></a></dt>
+<dd><p>Reduction algorithm, skeleton function</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="vhr_composite.model.metrics.calculate_mode">
+<span class="sig-prename descclassname"><span class="pre">vhr_composite.model.metrics.</span></span><span class="sig-name descname"><span class="pre">calculate_mode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_cell_data_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_disk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_cell_zarr_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/metrics.html#calculate_mode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.metrics.calculate_mode" title="Permalink to this definition"></a></dt>
+<dd><p>Get the mode from a series of binary class occurance arrays.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-vhr_composite.model.post_process">
+<span id="vhr-composite-model-post-process"></span><h2>vhr_composite.model.post_process<a class="headerlink" href="#module-vhr_composite.model.post_process" title="Permalink to this heading"></a></h2>
+</div>
+<div class="section" id="module-vhr_composite.model.utils">
+<span id="vhr-composite-model-utils"></span><h2>vhr_composite.model.utils<a class="headerlink" href="#module-vhr_composite.model.utils" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vhr_composite.model.utils.TqdmLoggingHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">vhr_composite.model.utils.</span></span><span class="sig-name descname"><span class="pre">TqdmLoggingHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/utils.html#TqdmLoggingHandler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.utils.TqdmLoggingHandler" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Handler</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vhr_composite.model.utils.TqdmLoggingHandler.emit">
+<span class="sig-name descname"><span class="pre">emit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/utils.html#TqdmLoggingHandler.emit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.utils.TqdmLoggingHandler.emit" title="Permalink to this definition"></a></dt>
+<dd><p>Do whatever it takes to actually log the specified logging record.</p>
+<p>This version is intended to be implemented by subclasses and so
+raises a NotImplementedError.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="vhr_composite.model.utils.get_post_str">
+<span class="sig-prename descclassname"><span class="pre">vhr_composite.model.utils.</span></span><span class="sig-name descname"><span class="pre">get_post_str</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vhr_composite/model/utils.html#get_post_str"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vhr_composite.model.utils.get_post_str" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="readme.html" class="btn btn-neutral float-left" title="vhr-composite" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Caleb S. Spradlin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

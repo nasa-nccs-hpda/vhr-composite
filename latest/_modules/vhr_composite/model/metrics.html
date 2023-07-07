@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vhr_composite.model.metrics &mdash; vhr-composite 0.0.1 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            vhr-composite
+          </a>
+              <div class="version">
+                0.0.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">vhr-composite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">vhr-composite package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">vhr-composite</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">vhr_composite.model.metrics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for vhr_composite.model.metrics</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+
+
+<span class="n">CLASS_0</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">CLASS_1</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">CLASS_2</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">CLASS_0_ALIAS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">CLASS_1_ALIAS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">CLASS_2_ALIAS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">HOST_DTYPE</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span>
+<span class="n">LAYER_AXIS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">LAYER_COUNT</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">CLASS_COUNT</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">Y_AXIS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">X_AXIS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">SUM_NO_MODE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">NO_DATA</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># SKELETON FUNCTION PT. 5</span>
+<span class="c1"># Change function name to fit alg</span>
+<span class="c1"># Change &quot;alg&quot; out with whatever you&#39;re doin</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span> <span class="nf">_alg_product</span><span class="p">(</span><span class="n">input_array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    reduction algorithm, takes 3d input, returns scalar</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">output_scalar</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">output_scalar</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># SKELETON FUNCTION PT. 4</span>
+<span class="c1"># Change function name to fit alg</span>
+<span class="c1"># Change &quot;alg&quot; out with whatever you&#39;re doing</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_fast_iterate_alg</span><span class="p">(</span>
+        <span class="n">output_array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">input_array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Iterate through first two dims of 3d host array</span>
+<span class="sd">    to get the mode for the z axis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">input_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">Y_AXIS</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">input_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">X_AXIS</span><span class="p">]):</span>
+            <span class="n">output_array</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">_alg_product</span><span class="p">(</span><span class="n">input_array</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="p">:])</span>
+    <span class="k">return</span> <span class="n">output_array</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># SKELETON FUNCTION PT. 3</span>
+<span class="c1"># Change function name to fit alg</span>
+<span class="c1"># Change &quot;alg&quot; out with whatever you&#39;re doing</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<div class="viewcode-block" id="calculate_alg"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.metrics.calculate_alg">[docs]</a><span class="k">def</span> <span class="nf">calculate_alg</span><span class="p">(</span><span class="n">grid_cell_data_array</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
+                  <span class="n">from_disk</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                  <span class="n">grid_cell_zarr_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reduction algorithm, skeleton function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">from_disk</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">grid_cell_zarr_path</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">grid_cell_zarr_path</span><span class="si">}</span><span class="s1"> does &#39;</span> <span class="o">+</span> \
+                <span class="s1">&#39;cannot be found or does not exist.&#39;</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">grid_cell_data_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">from_zarr</span><span class="p">(</span><span class="n">grid_cell_zarr_path</span><span class="p">)</span>
+    <span class="n">grid_cell_shape</span> <span class="o">=</span> <span class="n">grid_cell_data_array</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">output_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">grid_cell_shape</span><span class="p">[</span><span class="n">Y_AXIS</span><span class="p">],</span> <span class="n">grid_cell_shape</span><span class="p">[</span><span class="n">X_AXIS</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">HOST_DTYPE</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Computing alg&#39;</span><span class="p">)</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">output_array</span> <span class="o">=</span> <span class="n">_fast_iterate_alg</span><span class="p">(</span><span class="n">output_array</span><span class="p">,</span> <span class="n">grid_cell_data_array</span><span class="p">)</span>
+    <span class="n">et</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Alg compute time </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">et</span><span class="o">-</span><span class="n">st</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">output_array</span></div>
+
+
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span> <span class="nf">_mode_sum_product</span><span class="p">(</span><span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Multi-modal function</span>
+<span class="sd">    Given a single dimension host array where each index is a class</span>
+<span class="sd">    return all occurences of the max in the array such that if</span>
+<span class="sd">    multiple classes have the same max, return the sum.</span>
+<span class="sd">    :param array: np.ndarray, Flat array to calculate multi-mode</span>
+<span class="sd">    :return max_element_to_return: int, element</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_element</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">max_element</span> <span class="o">==</span> <span class="n">SUM_NO_MODE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">NO_DATA</span>
+    <span class="n">max_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">array</span> <span class="o">==</span> <span class="n">max_element</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="n">max_pl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">max_indices</span> <span class="o">==</span> <span class="n">CLASS_0</span><span class="p">,</span> <span class="n">CLASS_0_ALIAS</span><span class="p">,</span> <span class="n">max_indices</span><span class="p">)</span>
+    <span class="n">max_pl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">max_indices</span> <span class="o">==</span> <span class="n">CLASS_1</span><span class="p">,</span> <span class="n">CLASS_1_ALIAS</span><span class="p">,</span> <span class="n">max_pl</span><span class="p">)</span>
+    <span class="n">max_pl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">max_indices</span> <span class="o">==</span> <span class="n">CLASS_2</span><span class="p">,</span> <span class="n">CLASS_2_ALIAS</span><span class="p">,</span> <span class="n">max_pl</span><span class="p">)</span>
+    <span class="n">max_element_to_return</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">max_pl</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">max_element_to_return</span>
+
+
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_fast_iterate_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Iterate through first two dims of 3d host array</span>
+<span class="sd">    to get the mode for the z axis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">Y_AXIS</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">X_AXIS</span><span class="p">]):</span>
+            <span class="n">mode</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">_mode_sum_product</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="p">:])</span>
+    <span class="k">return</span> <span class="n">mode</span>
+
+
+<span class="k">def</span> <span class="nf">_get_sum</span><span class="p">(</span><span class="n">binary_class</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+             <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given a binary class occurance ndarray, sum along the z</span>
+<span class="sd">    axis. Converts zarr dask array to device-backed dask array,</span>
+<span class="sd">    performs computation, converts back to host array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">sum_class</span> <span class="o">=</span> <span class="n">binary_class</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="n">LAYER_AXIS</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">HOST_DTYPE</span><span class="p">)</span>
+    <span class="n">et</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Mode sum - Sum time: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">et</span><span class="o">-</span><span class="n">st</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">sum_class</span>
+
+
+<div class="viewcode-block" id="calculate_mode"><a class="viewcode-back" href="../../../modules.html#vhr_composite.model.metrics.calculate_mode">[docs]</a><span class="k">def</span> <span class="nf">calculate_mode</span><span class="p">(</span><span class="n">grid_cell_data_array</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
+                   <span class="n">classes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                   <span class="n">from_disk</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                   <span class="n">grid_cell_zarr_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the mode from a series of binary class occurance arrays.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">classes</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">from_disk</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">grid_cell_zarr_path</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">grid_cell_zarr_path</span><span class="si">}</span><span class="s1"> does &#39;</span> <span class="o">+</span> \
+                <span class="s1">&#39;cannot be found or does not exist.&#39;</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">grid_cell_data_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">from_zarr</span><span class="p">(</span><span class="n">grid_cell_zarr_path</span><span class="p">)</span>
+    <span class="n">grid_cell_shape</span> <span class="o">=</span> <span class="n">grid_cell_data_array</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">class_sums_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">grid_cell_shape</span><span class="p">[</span><span class="n">Y_AXIS</span><span class="p">],</span> <span class="n">grid_cell_shape</span><span class="p">[</span><span class="n">X_AXIS</span><span class="p">],</span>
+                        <span class="n">num_classes</span><span class="p">)</span>
+    <span class="n">class_sums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">class_sums_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">HOST_DTYPE</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">class_id</span><span class="p">,</span> <span class="n">class_value</span> <span class="ow">in</span> <span class="n">classes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">class_binary_array</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">grid_cell_data_array</span> <span class="o">==</span> <span class="n">class_value</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">HOST_DTYPE</span><span class="p">)</span>
+        <span class="n">class_sums</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">_get_sum</span><span class="p">(</span><span class="n">class_binary_array</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">class_sums</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">Y_AXIS</span><span class="p">],</span> <span class="n">class_sums</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">X_AXIS</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">HOST_DTYPE</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Computing mode&#39;</span><span class="p">)</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="n">_fast_iterate_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">class_sums</span><span class="p">)</span>
+    <span class="n">et</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Mode compute time </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">et</span><span class="o">-</span><span class="n">st</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">mode</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Caleb S. Spradlin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
