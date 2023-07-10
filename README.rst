@@ -12,4 +12,11 @@ vhr-composite
 * GitHub repo: https://github.com/nasa-nccs-hpda/vhr-composite
 * Documentation: https://nasa-nccs-hpda.github.io/vhr-composite
 
+Installation
+------------
 
+**vhr-composite** is available on `PyPI <https://pypi.org/project/eo-validation/>`__. To install **vhr-composite**, run this command in your terminal:
+
+.. code:: python
+
+  pip install vhr-composite
