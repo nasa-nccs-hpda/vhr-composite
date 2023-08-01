@@ -17,6 +17,14 @@ vhr_composite.model.metrics
    :undoc-members:
    :show-inheritance:
 
+vhr_composite.model.kernels
+----------------------------
+
+.. automodule:: vhr_composite.model.kernels
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 vhr_composite.model.post_process
 ---------------------------------
 
