@@ -41,19 +41,20 @@ def main():
 
     # * Set some (hardcoded for now) variables
     region = 'CAS'  # Assume for now we are doing one region at a time
-    test_name = 'qaTest2'
+    test_name = 'test'
     model_name = 'otcb.v5'
     grid_cell_name_pre_str = 'CAS.M1BS'
     start_year = 2016
     end_year = 2023  # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
     datetime_column = 'datetime'
 
-    output_dir = '/explore/nobackup/people/cssprad1' + \
+    user = os.environ["USER"]
+
+    output_dir = f'/explore/nobackup/people/{user}' + \
         '/projects/vhr-compisite/data'
 
-    grid_path = '/explore/nobackup/people/mwooten3/Senegal_LCLUC/' + \
-        'Shapefiles/Grid/Senegal_Grid__all.shp'
-    metadataFootprints = 'CAS_M1BS_griddedToa_metadata.gpkg'
+    grid_path = 'geopackages/Senegal_Grid__all.shp'
+    metadataFootprints = 'geopackages/CAS_M1BS_griddedToa_metadata.gpkg'
 
     # Add in our landcover products and cloud mask products to the metadata
     # footprints file. Because what's the point if we don't have some damn
@@ -65,8 +66,6 @@ def main():
 
     # Get gdf with strips of interest
     metadata_gdf = gpd.read_file(metadataFootprints)
-
-    print(metadata_gdf.columns)
 
     # Some soil moisture values are NaN's, we
     # do not question why, we just fix. This is the way.
