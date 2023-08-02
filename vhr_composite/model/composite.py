@@ -12,10 +12,13 @@ from osgeo import gdal
 
 from typing import Union
 
+from vhr_composite.model.utils import convert_to_bit_rep
+
+from vhr_composite.model import metrics
 from vhr_composite.model.metrics import calculate_mode
-from vhr_composite.model.metrics import calculate_alg
 from vhr_composite.model.metrics import CLASS_0, CLASS_1, CLASS_2
-from vhr_composite.model.metrics import CLASS_0_ALIAS, CLASS_1_ALIAS, CLASS_2_ALIAS
+from vhr_composite.model.metrics import CLASS_0_ALIAS
+from vhr_composite.model.metrics import CLASS_1_ALIAS, CLASS_2_ALIAS
 
 TIME: str = "time"
 X: str = "x"
@@ -96,7 +99,7 @@ class Composite(object):
     def generate_grid(self, tile_list: list) -> None:
         """
         Generate the gridded zarrs from a pre-calculated intersection
-        of grid cells and 
+        of grid cells and
         """
         for tile in tqdm.tqdm(tile_list):
             self._logger.info(f'{tile}- Processing {tile}')
@@ -135,13 +138,14 @@ class Composite(object):
     def generate_single_grid(
             self,
             tile: str,
+            variable_name: str,
             write_out: bool = False) -> Union[xr.Dataset, None]:
         """
         Generate the gridded zarrs from a pre-calculated intersection
-        of grid cells and 
+        of grid cells and
         """
         self._logger.info(f'{tile}- Processing {tile}')
-        name = '{}.{}'.format(GRID_CELL_NAME_PRE_STR, tile)
+        name = variable_name
         tile_path = os.path.join(self._output_dir, f'{name}.zarr')
         if os.path.exists(tile_path):
             self._logger.info(f'{tile}- {tile_path} already exists')
@@ -273,32 +277,33 @@ class Composite(object):
         mode_data_array.rio.to_raster(tile_raster_path)
         return None
 
-    def _add_non_qa_data(self,
-                         tile_datarray: xr.DataArray,
+    @staticmethod
+    def _add_non_qa_data(tile_datarray: xr.DataArray,
                          mode: np.ndarray,
-                         not_passed_qa_datetimes: list) -> np.ndarray:
+                         not_passed_qa_datetimes: list,
+                         logger: logging.Logger) -> np.ndarray:
         for qa_datetime_to_select in not_passed_qa_datetimes:
             if not (mode == OTHER_DATA).any():
-                self._logger.info('No more nodata, exiting')
+                logger.info('No more nodata, exiting')
                 break
             model_output_per_datetime = tile_datarray.sel(
                 time=qa_datetime_to_select)
             model_output_per_datetime_ndarray = \
                 model_output_per_datetime.values
-            model_output_per_datetime_ndarray = np.where(
+            model_output_per_datetime_ndarray_ed = np.where(
                 model_output_per_datetime_ndarray == CLASS_0,
                 CLASS_0_ALIAS,
                 model_output_per_datetime_ndarray)
-            model_output_per_datetime_ndarray = np.where(
+            model_output_per_datetime_ndarray_ed = np.where(
                 model_output_per_datetime_ndarray == CLASS_1,
                 CLASS_1_ALIAS,
-                model_output_per_datetime_ndarray)
-            model_output_per_datetime_ndarray = np.where(
+                model_output_per_datetime_ndarray_ed)
+            model_output_per_datetime_ndarray_ed = np.where(
                 model_output_per_datetime_ndarray == CLASS_2,
                 CLASS_2_ALIAS,
-                model_output_per_datetime_ndarray)
+                model_output_per_datetime_ndarray_ed)
             mode = np.where(mode == OTHER_DATA,
-                            model_output_per_datetime_ndarray, mode)
+                            model_output_per_datetime_ndarray_ed, mode)
         return mode
 
     def calculate_mode(self,
@@ -388,7 +393,8 @@ class Composite(object):
                                       compress='lzw')
         warpOptions = ['COMPRESS=LZW']
         warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
-        _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
+        _ = gdal.Warp(warped_tile, tile_raster_output_path,
+                      warpOptions=warpOptions)
         return None
 
     def calculate_mode_qa(self,
@@ -424,7 +430,8 @@ class Composite(object):
         except KeyError as e:
             print(e)
             self._logger.error(
-                f'Good - Could not find all times in passed {passed_qa_datetimes}')
+                'Good - Could not find all times' +
+                f' in passed {passed_qa_datetimes}')
             return None
 
         self._logger.info(tile_array.time)
@@ -498,14 +505,183 @@ class Composite(object):
                                       compress='lzw')
         warpOptions = ['COMPRESS=LZW']
         warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
-        _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
+        _ = gdal.Warp(warped_tile, tile_raster_output_path,
+                      warpOptions=warpOptions)
         return None
+
+    def fill_holes(
+            self,
+            data_array: xr.DataArray,
+            reduced_stack: np.ndarray,
+            datetimes_to_fill,
+            nodata_value):
+        for datetime in datetimes_to_fill:
+            if not (reduced_stack == nodata_value).any():
+                self._logger.info("No more no-data to fill")
+                break
+            array_per_datetime = data_array.sel(time=datetime)
+            bit_rep_array_per_datetime = convert_to_bit_rep(array_per_datetime)
+            reduced_stack = np.where(reduced_stack == nodata_value,
+                                     bit_rep_array_per_datetime,
+                                     reduced_stack)
+        return reduced_stack
+
+    @staticmethod
+    def reduce_stack(algorithm: str,
+                     tile_dataarray: xr.DataArray,
+                     output_path: str,
+                     overwrite: bool = False,
+                     nodata: np.uint32 = metrics.HOST_FILL,
+                     gpu=True,
+                     logger=None) -> xr.DataArray:
+
+        if output_path.exists() and not overwrite:
+            log_msg = f'{output_path} already exists.'
+            logger.info(log_msg)
+
+        tile_data_array_no_band = tile_dataarray.sel(band=BAND)
+        tile_data_array_prepped = tile_data_array_no_band.transpose(Y, X, TIME)
+        tile_ndarray = tile_data_array_prepped.data
+        tile_ndarray = np.ascontiguousarray(
+            tile_ndarray, dtype=tile_ndarray.dtype)
+
+        algorithm_to_use = eval(f"metrics.{algorithm}")
+        reduced_stack = algorithm_to_use(tile_ndarray, nodata=nodata, gpu=gpu)
+        coords = Composite.get_coords(tile_dataarray)
+        variable_name = Composite.make_variable_name(output_path)
+        reduced_stack_data_array = Composite.make_data_array(
+            reduced_stack, coords, variable_name)
+        return reduced_stack_data_array
+
+    @staticmethod
+    def get_coords(dataset: xr.Dataset) -> dict:
+        assert hasattr(dataset, 'band')
+        assert hasattr(dataset, 'y')
+        assert hasattr(dataset, 'x')
+        assert hasattr(dataset, 'spatial_ref')
+
+        coords = dict(
+            band=dataset.band,
+            y=dataset.y,
+            x=dataset.x,
+            spatial_ref=dataset.spatial_ref,
+        )
+
+        return coords
+
+    @staticmethod
+    def make_variable_name(output_path):
+        return output_path.stem
+
+    @staticmethod
+    def reduce_stack_legacy_mode(algorithm: str,
+                                 tile_dataarray: xr.DataArray,
+                                 output_path: str,
+                                 overwrite: bool = False,
+                                 gpu=True,
+                                 logger=None) -> xr.DataArray:
+
+        if output_path.exists() and not overwrite:
+            log_msg = f'{output_path} already exists.'
+            logger.info(log_msg)
+
+        tile_data_array_no_band = tile_dataarray.sel(band=BAND)
+        tile_data_array_prepped = tile_data_array_no_band.transpose(Y, X, TIME)
+
+        classes = {0: 0, 1: 1, 2: 2}
+
+        mode, _ = Composite._calculate_mode(tile_data_array_prepped,
+                                            classes,
+                                            calculate_nobservations=True,
+                                            logger=logger)
+
+        reduced_stack = np.expand_dims(mode, axis=0)
+
+        # algorithm_to_use = eval(f"metrics.{algorithm}")
+        coords = Composite.get_coords(tile_dataarray)
+        variable_name = Composite.make_variable_name(output_path)
+        reduced_stack_data_array = Composite.make_data_array(
+            reduced_stack, coords, variable_name)
+        return reduced_stack_data_array
+
+    @staticmethod
+    def reduce_stack_legacy_mode_w_qa(algorithm: str,
+                                      tile_dataarray: xr.DataArray,
+                                      bad_tile_array: xr.DataArray,
+                                      not_passed_qa_datetimes: list,
+                                      output_path: str,
+                                      overwrite: bool = False,
+                                      gpu=True,
+                                      logger=None) -> xr.DataArray:
+
+        if output_path.exists() and not overwrite:
+            log_msg = f'{output_path} already exists.'
+            logger.info(log_msg)
+
+        tile_data_array_no_band = tile_dataarray.sel(band=BAND)
+        tile_data_array_prepped = tile_data_array_no_band.transpose(Y, X, TIME)
+
+        bad_tile_data_array_no_band = bad_tile_array.sel(band=BAND)
+        bad_tile_data_array_prepped = bad_tile_data_array_no_band.transpose(
+            Y, X, TIME)
+
+        classes = {0: 0, 1: 1, 2: 2}
+
+        mode, _ = Composite._calculate_mode(tile_data_array_prepped,
+                                            classes,
+                                            calculate_nobservations=True,
+                                            logger=logger)
+        print(mode.shape)
+        mode = Composite._add_non_qa_data(bad_tile_data_array_prepped, mode,
+                                          not_passed_qa_datetimes,
+                                          logger=logger)
+        print(mode.shape)
+        reduced_stack = np.expand_dims(mode, axis=0)
+
+        # algorithm_to_use = eval(f"metrics.{algorithm}")
+        coords = Composite.get_coords(tile_dataarray)
+        variable_name = Composite.make_variable_name(output_path)
+        reduced_stack_data_array = Composite.make_data_array(
+            reduced_stack, coords, variable_name)
+        return reduced_stack_data_array
+
+    @staticmethod
+    def reduce_stack_legacy_nobs(algorithm: str,
+                                 tile_dataarray: xr.DataArray,
+                                 output_path: str,
+                                 overwrite: bool = False,
+                                 gpu=True,
+                                 logger=None) -> xr.DataArray:
+
+        if output_path.exists() and not overwrite:
+            log_msg = f'{output_path} already exists.'
+            logger.info(log_msg)
+
+        tile_data_array_no_band = tile_dataarray.sel(band=BAND)
+        tile_data_array_prepped = tile_data_array_no_band.transpose(Y, X, TIME)
+
+        classes = {0: 0, 1: 1, 2: 2}
+
+        _, nobs = Composite._calculate_mode(tile_data_array_prepped,
+                                            classes,
+                                            calculate_nobservations=True,
+                                            logger=logger)
+
+        reduced_stack = np.expand_dims(nobs, axis=0)
+
+        # algorithm_to_use = eval(f"metrics.{algorithm}")
+        coords = Composite.get_coords(tile_dataarray)
+        variable_name = Composite.make_variable_name(output_path)
+        reduced_stack_data_array = Composite.make_data_array(
+            reduced_stack, coords, variable_name)
+        return reduced_stack_data_array
 
     # --------------------------------------------------------------------------
     # SKELETON FUNCTION PT. 1
     # Change function name to fit alg
     # Change "alg" out with whatever you're doing
     # --------------------------------------------------------------------------
+
     def calculate_algorithm_per_tile(
             self,
             tile_path: str,
@@ -546,8 +722,8 @@ class Composite(object):
         mode_data_array.rio.to_raster(tile_raster_path)
         return None
 
-    def _make_data_array(
-            self,
+    @staticmethod
+    def make_data_array(
             ndarray: np.ndarray,
             coords: dict,
             name: str) -> xr.DataArray:
@@ -565,7 +741,8 @@ class Composite(object):
         data_array.name = name
         return data_array
 
-    def _calculate_mode(self, tile_array: xr.DataArray,
+    @staticmethod
+    def _calculate_mode(tile_array: xr.DataArray,
                         classes: dict,
                         calculate_nobservations: bool = True,
                         logger: logging.Logger = None):
@@ -577,14 +754,84 @@ class Composite(object):
                               calculate_nobservations=calculate_nobservations,
                               logger=logger)
 
-    # --------------------------------------------------------------------------
-    # SKELETON FUNCTION PT. 2
-    # Change function name to fit alg
-    # Change "alg" out with whatever you're doing
-    # --------------------------------------------------------------------------
-    def _calculate_alg(self, tile_array: xr.DataArray,
-                       logger: logging.Logger = None):
-        """
-        Object-oriented wrapper for skeleton alg function
-        """
-        return calculate_alg(tile_array, logger=logger)
+
+if __name__ == '__main__':
+    from vhr_composite.model.utils import TqdmLoggingHandler
+    import pathlib
+    import time
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    sh = TqdmLoggingHandler()
+    sh.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s; %(levelname)s; %(message)s", "%Y-%m-%d %H:%M:%S"
+    )
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+
+    test_shape = (1, 500, 500, 20)
+    test_array = np.random.randint(0, 3, size=test_shape)
+    logger.info(test_array.max())
+    test_array = test_array.astype(np.uint8)
+
+    # Dummy time coordinate values
+    time_values = np.arange(test_array.shape[3])
+
+    # Create the xarray DataArray
+    da = xr.DataArray(test_array,
+                      dims=('band', 'y', 'x', 'time'),
+                      coords={'band': [1],
+                              'y': np.arange(test_array.shape[1]),
+                              'x': np.arange(test_array.shape[2]),
+                              'time': time_values,
+                              'spatial_ref': 'your_spatial_reference_here'})
+
+    output_path = pathlib.Path('dummy_multi_mode.tif')
+    st = time.time()
+    reduced_stack = Composite.reduce_stack('multi_mode',
+                                           da,
+                                           output_path,
+                                           overwrite=False,
+                                           gpu=True,
+                                           logger=logger)
+    et = time.time()
+    logger.info(f'{round((et - st), 5)}: GPU new alg')
+    logger.info(reduced_stack.data)
+
+    st = time.time()
+    legacy_style = Composite.reduce_stack_legacy_mode('mutli_mode',
+                                                      da,
+                                                      output_path,
+                                                      overwrite=False,
+                                                      gpu=False,
+                                                      logger=logger)
+    et = time.time()
+    logger.info(f'{round((et - st), 5)}: CPU old alg')
+    logger.info(legacy_style.data.max())
+    # legacy_decoded = decode_legacy(legacy_style.data)
+    # logger.info(legacy_decoded.max())
+    logger.info(legacy_style.data)
+
+    np.testing.assert_equal(reduced_stack.data, legacy_style.data)
+
+    st = time.time()
+    num_obs_stack = Composite.reduce_stack('number_observations',
+                                           da,
+                                           output_path,
+                                           overwrite=False,
+                                           gpu=False,
+                                           logger=logger)
+    et = time.time()
+    logger.info(f'{round((et - st), 5)}: CPU NOBS NEW')
+
+    st = time.time()
+    num_obs_legacy = Composite.reduce_stack_legacy_nobs('number_observations',
+                                                        da,
+                                                        output_path,
+                                                        overwrite=False,
+                                                        gpu=False,
+                                                        logger=logger)
+    et = time.time()
+    logger.info(f'{round((et - st), 5)}: CPU NOBS OLD')
+    np.testing.assert_equal(num_obs_stack.data, num_obs_legacy.data)
