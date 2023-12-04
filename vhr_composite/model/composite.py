@@ -1,12 +1,12 @@
 import os
-import logging
 import tqdm
+import logging
 import rasterio
+import numpy as np
+import pandas as pd
 import xarray as xr
 import rioxarray as rxr
 import geopandas as gpd
-import pandas as pd
-import numpy as np
 
 from osgeo import gdal
 
@@ -25,7 +25,7 @@ CLOUD_CLEAR_VALUE: int = 0
 NO_DATA: int = 255
 OTHER_DATA: int = 10
 FILL_DATA: int = 10
-BURN_AREA_VALUE: int = 3
+BURN_AREA_VALUE: int = 15
 STRIP_FILE_PATH_KEY: str = 'landcover'
 MASK_FILE_PATH_KEY: str = 'cloudmask'
 GRID_CELL_NAME_PRE_STR: str = 'CAS.M1BS'
@@ -48,18 +48,21 @@ class Composite(object):
         self._model_output_geopackage_path = model_output_geopackage_path
         self._logger = logger
 
-        os.makedirs(output_dir, exist_ok=True)
-        print(output_dir)
         self._output_dir = output_dir
+        os.makedirs(self._output_dir, exist_ok=True)
+        logging.info(f'Created output directory at {self._output_dir}')
 
         if not os.path.exists(self._grid_geopackage_path) or \
                 not os.path.exists(self._model_output_geopackage_path):
-            msg = '{} does not exist'.format(self._grid_geopackage_path)
+            msg = f'{self._grid_geopackage_path} does not exist'
             raise FileNotFoundError(msg)
 
         self._grid = gpd.read_file(self._grid_geopackage_path)
+        logging.info(f'Loaded grid: {self._grid_geopackage_path}')
+
         self._model_output = \
             gpd.read_file(self._model_output_geopackage_path)
+        logging.info(f'Loaded metadata: {self._model_output_geopackage_path}')
 
     def generate_grid_via_intersect(self, calculate_mode: bool = False,
                                     classes: dict = None) -> None:
@@ -93,14 +96,18 @@ class Composite(object):
                                              )
         return None
 
-    def generate_grid(self, tile_list: list) -> None:
+    def generate_grid(
+                self,
+                tile_list: list,
+                grid_cell_name_pre_str: str = 'COM.M1BS'
+            ) -> None:
         """
         Generate the gridded zarrs from a pre-calculated intersection
-        of grid cells and 
+        of grid cells
         """
         for tile in tqdm.tqdm(tile_list):
-            self._logger.info(f'{tile}- Processing {tile}')
-            name = '{}.{}'.format(GRID_CELL_NAME_PRE_STR, tile)
+            self._logger.info(f'{tile} - Processing {tile}')
+            name = '{}.{}'.format(grid_cell_name_pre_str, tile)
             tile_path = os.path.join(self._output_dir, f'{name}.zarr')
             if os.path.exists(tile_path):
                 self._logger.info(f'{tile}- {tile_path} already exists')
@@ -133,15 +140,18 @@ class Composite(object):
         return None
 
     def generate_single_grid(
-            self,
-            tile: str,
-            write_out: bool = False) -> Union[xr.Dataset, None]:
+                self,
+                tile: str,
+                write_out: bool = False,
+                fill_value: int = 10,
+                grid_cell_name_pre_str: str = 'COM.M1BS'
+            ) -> Union[xr.Dataset, None]:
         """
         Generate the gridded zarrs from a pre-calculated intersection
-        of grid cells and 
+        of grid cells
         """
-        self._logger.info(f'{tile}- Processing {tile}')
-        name = '{}.{}'.format(GRID_CELL_NAME_PRE_STR, tile)
+        self._logger.info(f'{tile} - Processing {tile}')
+        name = '{}.{}'.format(grid_cell_name_pre_str, tile)
         tile_path = os.path.join(self._output_dir, f'{name}.zarr')
         if os.path.exists(tile_path):
             self._logger.info(f'{tile}- {tile_path} already exists')
@@ -150,13 +160,16 @@ class Composite(object):
         strips = self._model_output[
             self._model_output['tile'] == tile]
         len_strips = len(strips)
-        self._logger.info(f'{tile}- Processing {len_strips} strips')
+        self._logger.info(f'{tile} - Processing {len_strips} strips')
         tiles_df = [tile_df for _ in range(len_strips)]
+
         landcovers = strips['landcover'].values
         cloudmasks = strips['cloudmask'].values
         datetimes = strips['datetime'].values
+
         if len_strips < 1:
             return None
+
         arrays = list(map(
             Composite.strip_to_grid,
             landcovers, cloudmasks,
@@ -166,10 +179,10 @@ class Composite(object):
         if len(arrays) < 1:
             return None
 
-        concat_array = xr.concat(arrays, dim='time', fill_value=10)
+        concat_array = xr.concat(arrays, dim='time', fill_value=fill_value)
         concat_dataset = concat_array.to_dataset(name=name)
         if write_out:
-            self._logger.info(f'{tile}-Writing to {tile_path}')
+            self._logger.info(f'{tile} - Writing to {tile_path}')
             concat_dataset.to_zarr(tile_path)
             return concat_dataset
         arrays = None
@@ -209,15 +222,29 @@ class Composite(object):
         geometry is used to clip the strip to
         :return: rioxarray.DataArray, the clipped DataArray strip
         """
+
+        # open land cover product
         try:
             strip_data_array = rxr.open_rasterio(land_cover_path)
-            cloud_mask_data_array = rxr.open_rasterio(cloud_mask_path)
         except rasterio.errors.RasterioIOError:
             error_file = os.path.basename(
                 land_cover_path).replace('.tif', '.txt')
             with open(error_file, 'w') as fh:
-                fh.writelines([land_cover_path+'\n'+cloud_mask_path+'\n'])
+                fh.writelines([f'{land_cover_path}\n'])
             return None
+
+        try:
+            cloud_mask_data_array = rxr.open_rasterio(cloud_mask_path)
+        except (rasterio.errors.RasterioIOError, TypeError):
+            error_file = os.path.basename(
+                land_cover_path).replace('.tif', '.txt')
+            with open(error_file, 'w') as fh:
+                fh.writelines([f'{land_cover_path}\n'])
+
+            # assign clear cloud mask array (ignore if there are clouds)
+            cloud_mask_data_array = strip_data_array[0:1, :, :]
+            cloud_mask_data_array = cloud_mask_data_array.where(
+                cloud_mask_data_array != 0, 0)
 
         geometry_to_clip = grid_geodataframe.geometry.values
         geometry_crs = grid_geodataframe.crs
@@ -316,8 +343,6 @@ class Composite(object):
             else xr.open_zarr(tile_path)
 
         variable_name = os.path.basename(tile_path).split('.zarr')[0]
-        variable_name = variable_name.replace('ETZ', 'CAS')
-
         name = f'{variable_name}.mode'
 
         if os.path.exists(tile_raster_output_path):
@@ -329,9 +354,28 @@ class Composite(object):
             tile_array = \
                 tile_dataset[variable_name].sel(time=rows_to_use)
         except KeyError:
+
+            # There are some cases where folks might have not predicted
+            # all the files that were available. In this case we select
+            # the available ones.
+
             self._logger.error(
                 f'Could not find all times in passed {rows_to_use}')
-            return None
+            self._logger.info('Selecting the available bands only')
+
+            rows_to_use = list(
+                set(rows_to_use).intersection(
+                    tile_dataset[variable_name].time.values))
+
+            # if even after the filter we cannot find any files, exit
+            if len(rows_to_use) < 1:
+                self._logger.error('No files were matched.')
+                return None
+
+            # Select the array without the band
+            # transpose to time-last format
+            tile_array = \
+                tile_dataset[variable_name].sel(time=rows_to_use)
 
         self._logger.info(tile_array.time)
         tile_array = tile_array.sel(
@@ -358,7 +402,6 @@ class Composite(object):
             nobs_data_array = self._make_data_array(nobs_with_band,
                                                     coords,
                                                     name)
-            variable_name = variable_name.replace('CAS', 'ETZ')
             nobs_name = f'{variable_name}.nobservations.noqa'
             nobs_raster_output_path = \
                 tile_raster_output_path.replace('mode', 'nobservations')
@@ -389,6 +432,7 @@ class Composite(object):
         warpOptions = ['COMPRESS=LZW']
         warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
         _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
+
         return None
 
     def calculate_mode_qa(self,

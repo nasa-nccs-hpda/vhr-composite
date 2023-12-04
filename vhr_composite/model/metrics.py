@@ -9,12 +9,19 @@ import numba as nb
 import xarray as xr
 
 
+# TODO: replace all of this with the stuff from the config file
 CLASS_0: int = 0
 CLASS_1: int = 1
 CLASS_2: int = 2
-CLASS_0_ALIAS: int = 1
-CLASS_1_ALIAS: int = 2
-CLASS_2_ALIAS: int = 4
+CLASS_3: int = 3
+CLASS_4: int = 4
+CLASS_5: int = 5
+CLASS_0_ALIAS: int = 0
+CLASS_1_ALIAS: int = 1
+CLASS_2_ALIAS: int = 2 # TODO: senegal only
+CLASS_3_ALIAS: int = 3
+CLASS_4_ALIAS: int = 4
+CLASS_5_ALIAS: int = 5
 HOST_DTYPE: np.dtype = np.uint8
 LAYER_AXIS: int = 2
 LAYER_COUNT: int = 3
@@ -104,6 +111,9 @@ def _mode_sum_product(array: np.ndarray) -> Tuple[int, int]:
     max_pl = np.where(max_indices == CLASS_0, CLASS_0_ALIAS, max_indices)
     max_pl = np.where(max_indices == CLASS_1, CLASS_1_ALIAS, max_pl)
     max_pl = np.where(max_indices == CLASS_2, CLASS_2_ALIAS, max_pl)
+    max_pl = np.where(max_indices == CLASS_3, CLASS_3_ALIAS, max_pl)
+    max_pl = np.where(max_indices == CLASS_4, CLASS_4_ALIAS, max_pl)
+    max_pl = np.where(max_indices == CLASS_5, CLASS_5_ALIAS, max_pl)
     max_element_to_return = int(np.sum(max_pl))
     return max_element_to_return, sum_element_to_return
 

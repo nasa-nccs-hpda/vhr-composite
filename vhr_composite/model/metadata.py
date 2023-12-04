@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import logging
 import pandas as pd
@@ -47,14 +48,13 @@ class Metadata(object):
 
         # read footprints dataframe
         self.fp_gdf = gpd.read_file(self.input_filename)
+        logging.info(f'Reading footprint file {self.input_filename}')
 
         # set datetime columns for zonal stats
         self.fp_gdf['datetime'] = pd.to_datetime(
             self.fp_gdf[self.conf.date_column_field],
             format=self.conf.date_column_field_format, exact=False
         )
-
-        print(self.fp_gdf.columns)
 
     # -------------------------------------------------------------------------
     # extract_metadata
@@ -70,8 +70,12 @@ class Metadata(object):
         self.fp_gdf = self.fp_gdf[
             self.fp_gdf['strip_id'] != 'WV02_20110223_M1BS_1030010009935100']
 
-        # List to hold outputs from zonal stats, TODO: maybe remove
+        # List to hold outputs from zonal stats
         output_gdfs_list = [self.fp_gdf]
+
+        logging.info(
+            'Processing the following metrics: ' +
+            ", ".join(self.conf.metadata_fields))
 
         # Metadata: soil_moisture
         if 'soil_moisture' in self.conf.metadata_fields:
@@ -82,10 +86,8 @@ class Metadata(object):
             )
             output_gdfs_list.append(sm)
 
-        # print(sm)
-
         """
-        # Metadata: 
+        # Metadata:
         if args['chirpsPrecip']:
             print("\n  Getting CHIRPS precip...")
             mp = footprints.getMonthlyPrecip(stats = statsList, 
@@ -127,10 +129,10 @@ class Metadata(object):
             print("\n  Getting ecoregion...")
             er = footprints.getEcoregion(stats = ['majority'], 
                             allTouched = allTouched, subsetCols = joinCols.copy())
-            
+
             outDfs.append(er)
             #writeShapefile(er, 'test/TAPPAN-testZS-ecoregion.shp')
-        
+
         if args['sceneSstGeometry']:
             s = time.time()
             print("\n  Getting scene acquisition geometry...")
@@ -140,7 +142,7 @@ class Metadata(object):
             e = time.time()
             print("\n   Done with scene acquisition geometry")
             print("   ", calculateElapsedTime(s, e, unit = 'seconds'))
-            
+
             outDfs.append(sg)
 
         if args['cloudCover']:
@@ -157,8 +159,7 @@ class Metadata(object):
         #import pdb; pdb.set_trace()
         """
 
-        print(output_gdfs_list)
-
+        # save and store updated metadata
         dask_gdfs = [
             dask_geopandas.from_geopandas(gdf, npartitions=1)
             for gdf in output_gdfs_list]
@@ -169,6 +170,7 @@ class Metadata(object):
             :, ~output_gdf.columns.duplicated()].copy()
 
         output_gdf.to_file(self.output_filename)
+        logging.info(f'Saved {self.output_filename}')
 
         return output_gdf
 
@@ -226,8 +228,8 @@ class Metadata(object):
             in_zip = input_tif.replace('.tif', '.zip')
 
             if not os.path.isfile(in_zip):
-                logging.info(f"Neither {input_tif} nor {in_zip} exists.")
-                return
+                logging.error(f"Neither {input_tif} nor {in_zip} exists.")
+                sys.exit()
 
             shutil.unpack_archive(in_zip, os.path.dirname(in_zip))
 

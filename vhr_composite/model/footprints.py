@@ -1,12 +1,12 @@
 import os
 import logging
-import rasterio
 import pandas as pd
 import geopandas as gpd
 import rioxarray as rxr
+import xml.etree.ElementTree as ET
+
 from glob import glob
 from shapely.geometry import box
-import xml.etree.ElementTree as ET
 
 
 class Footprints(object):
@@ -28,7 +28,8 @@ class Footprints(object):
                 self,
                 conf: dict,
                 input_data: str,
-                output_filename: str
+                output_filename: str,
+                grid_filename: str = None
             ):
 
         # Configuration file intialization
@@ -42,6 +43,9 @@ class Footprints(object):
 
         # set output_filename
         self.output_filename = output_filename
+
+        # set grid_filename
+        self.grid_filename = grid_filename
 
         # set base fields
         # TODO: consider adding as global variable from class
@@ -70,6 +74,23 @@ class Footprints(object):
         # Add region column if available in config file
         if 'region' in self.conf.keys():
             fp_gdf = fp_gdf.assign(region=self.conf.region)
+            logging.info('Adding region')
+
+        # Combine with grid data
+        if self.grid_filename is not None:
+
+            # open grid filename
+            grid_gdf = gpd.read_file(self.grid_filename, mask=fp_gdf)
+
+            # convert to the same CRS
+            fp_gdf_epsg = fp_gdf.crs.to_epsg()
+            if int(fp_gdf_epsg) != int(grid_gdf.crs.to_epsg()):
+                grid_gdf = grid_gdf.to_crs(fp_gdf_epsg)
+
+            # overlay grid and add tiles
+            fp_gdf = gpd.overlay(fp_gdf, grid_gdf, how='intersection')
+
+            logging.info('Adding grid metadata')
 
         # Finally, write dataframe to disk
         fp_gdf.to_file(self.output_filename)
