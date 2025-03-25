@@ -19,8 +19,16 @@ from vhr_composite.model import metrics
 from vhr_composite.model.utils import convert_to_bit_rep
 from vhr_composite.model.metrics import calculate_mode
 from vhr_composite.model.metrics import calculate_alg
-from vhr_composite.model.metrics import CLASS_0, CLASS_1, CLASS_2, CLASS_3, CLASS_4, CLASS_5
-from vhr_composite.model.metrics import CLASS_0_ALIAS, CLASS_1_ALIAS, CLASS_2_ALIAS, CLASS_3_ALIAS, CLASS_4_ALIAS, CLASS_5_ALIAS
+from vhr_composite.model.metrics import (
+    CLASS_0, CLASS_1,
+    CLASS_2, CLASS_3,
+    CLASS_4, CLASS_5
+)
+from vhr_composite.model.metrics import (
+    CLASS_0_ALIAS, CLASS_1_ALIAS,
+    CLASS_2_ALIAS, CLASS_3_ALIAS,
+    CLASS_4_ALIAS, CLASS_5_ALIAS
+)
 
 TIME: str = "time"
 X: str = "x"
@@ -301,26 +309,25 @@ class Composite(object):
             logging.info(f'Could not process {output_path} due to NoData input array values')
             return None
         # max_class = tile_ndarray[tile_ndarray != nodata].max() #*TD get this from config - maybe some tiles have max_class=6, others 4
-            
-        # max_class = 5 #6class ==> 0 to 5 #*TODO deal #*MW delete do not need max class anymore
-        
 
-        # faster approach        
+        # max_class = 5 #6class ==> 0 to 5 #*TODO deal #*MW delete do not need max class anymore
+
+        # faster approach
         d1, d2, t = tile_ndarray.shape
         out_arr = np.zeros((d1, d2, len(class_values)), dtype=np.float32)
-    
+
         if nodata is not None:
             valid_mask = tile_ndarray != nodata
         else:
             valid_mask = np.ones_like(tile_ndarray, dtype=bool)
-        
+
         # iterate through each possible class value (0 to max_value)
         # for classn in range(max_class_value + 1):class_values
-        for classn in class_values: #*MW
-            
+        for classn in class_values:
+
             # count class occurrences of the current value for valid pixels
             out_arr[..., classn] = np.sum((tile_ndarray == classn)
-                                                           & valid_mask, 
+                                                           & valid_mask,
                                                                 axis=2)
         # convert to % of total valid observations
         valid_obs = np.sum(valid_mask, axis=2)  # total n valid obsvervation per pixel location
