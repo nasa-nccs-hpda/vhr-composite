@@ -645,7 +645,6 @@ class Composite(object):
                     (strip_data_array != NO_DATA) #*MW use strip_data_array._FillValue?
                     ), other=OTHER_DATA).astype(np.uint8)
             except ValueError:
-                print('cloud padding hack did not work') # eg padding not large enough? or etc
                 import pdb;pdb.set_trace() 
 
             del cloud, y_padded, x_padded
@@ -795,21 +794,15 @@ class Composite(object):
             model_output_per_datetime_ndarray = \
                 model_output_per_datetime.values
 
-            print("FIRST STEP: ", np.unique(model_output_per_datetime_ndarray))
-
             model_output_per_datetime_ndarray = np.where(
                 model_output_per_datetime_ndarray == CLASS_0,
                 CLASS_0_ALIAS,
                 model_output_per_datetime_ndarray)
 
-            print("SECOND STEP: ", np.unique(model_output_per_datetime_ndarray))
-
             model_output_per_datetime_ndarray = np.where(
                 model_output_per_datetime_ndarray == CLASS_1,
                 CLASS_1_ALIAS,
                 model_output_per_datetime_ndarray)
-
-            print("THIRD STEP: ", np.unique(model_output_per_datetime_ndarray))
 
             model_output_per_datetime_ndarray = np.where(
                 model_output_per_datetime_ndarray == CLASS_2,
@@ -933,7 +926,11 @@ class Composite(object):
                                       compress='lzw')
         warpOptions = ['COMPRESS=LZW']
         warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
-        _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
+        _ = gdal.Warp(
+            warped_tile,
+            tile_raster_output_path,
+            warpOptions=warpOptions
+        )
 
         return None
 
@@ -1043,7 +1040,11 @@ class Composite(object):
                                       compress='lzw')
         warpOptions = ['COMPRESS=LZW']
         warped_tile = tile_raster_output_path.replace('.tif', 'warp.tif')
-        _ = gdal.Warp(warped_tile, tile_raster_output_path, warpOptions=warpOptions)
+        _ = gdal.Warp(
+            warped_tile,
+            tile_raster_output_path,
+            warpOptions=warpOptions
+        )
         return None
 
     # --------------------------------------------------------------------------
