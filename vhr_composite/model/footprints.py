@@ -153,7 +153,6 @@ class Footprints(object):
         gdf_list = []
         for filename in input_tifs:
 
-            # print("HEYYYYY", filename)
             try:
                 # read raster
                 raster = rxr.open_rasterio(filename)
@@ -175,6 +174,7 @@ class Footprints(object):
 
                 # append to the list to concatenate
                 gdf_list.append(raster_gdf)
+
             except rasterio.errors.RasterioIOError:
                 continue
 
@@ -245,7 +245,8 @@ class Footprints(object):
                     map(self._get_acq_time, gdf['xml_path']))
 
             else:
-                print(f'No field map for {base_field} exists yet. Skipping')
+                logging.info(
+                    f'No field map for {base_field} exists yet. Skipping')
 
         # save to output filename
         gdf.to_file(self.output_filename)
