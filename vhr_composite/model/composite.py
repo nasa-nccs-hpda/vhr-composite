@@ -50,11 +50,12 @@ CLASS_VALUES: list = [i for i in range(6)]
 
 class Composite(object):
 
-    def __init__(self,
-                 name: str,
-                 grid_geopackage_path: str,
-                 model_output_geopackage_path: str,
-                 output_dir: str
+    def __init__(
+                self,
+                name: str,
+                grid_geopackage_path: str,
+                model_output_geopackage_path: str,
+                output_dir: str
             ) -> None:
         """
         Initializes the Composite object
@@ -198,7 +199,7 @@ class Composite(object):
         of grid cells
         """
         if overwrite:
-            logging.info(f'OVERWRITE zarrs is on')
+            logging.info('OVERWRITE zarrs is on')
 
         logging.info(f'{tile} - Processing {tile}')
         name = '{}.{}'.format(grid_cell_name_pre_str, tile)
@@ -226,7 +227,7 @@ class Composite(object):
         cloudmasks = strips['cloudmask'].values
         datetimes = strips['datetime'].values
 
-        # Check if tile in grid .gpkg #*MW
+        # Check if tile in grid .gpkg
         if tile_df.empty:
             logging.info(
                 f'Tile {tile} is not in grid file')
@@ -269,18 +270,20 @@ class Composite(object):
 
         return concat_dataset
 
-    #*MW new function for calculate_binary_stats = True in .yaml
+    # function for calculate_binary_stats = True in .yaml
     @staticmethod
-    def calculate_binary_class_stats(stat: str,
-                                     tile_dataarray: xr.DataArray,
-                                     output_path: str,
-                                     overwrite: bool = False,
-                                     nodata: np.uint32 = metrics.HOST_FILL,
-                                     class_values: int = CLASS_VALUES, #*MW added
-                                     gpu=True,
-                                    ) -> xr.DataArray:
+    def calculate_binary_class_stats(
+                stat: str,
+                tile_dataarray: xr.DataArray,
+                output_path: str,
+                overwrite: bool = False,
+                nodata: np.uint32 = metrics.HOST_FILL,
+                class_values: int = CLASS_VALUES,
+                gpu=True,
+            ) -> xr.DataArray:
 
-        """Similar to reduce_stack, but instead of reducing 4D time-series stack to a 3D arr
+        """
+        Similar to reduce_stack, but instead of reducing 4D time-series stack to a 3D arr
         [eg (band: 1, time: n_t, y: 5000, x: 5000) => (band: 1, y: 5000, x: 5000)], 
         this reduces the stack from time for each land cover class value and returns 
         a 4D array that has a 'class' dimension instead of a time dimension [eg 
@@ -334,8 +337,7 @@ class Composite(object):
         valid_obs[valid_obs == 0] = nodata #*TD deal with nodata (output, others?) -  pixels with 0 observations should be nodata in output. Presume nobs could not be > specified output nodata value (val should be speficied this way anyways) so we can use as a placeholder for now to avoid divide by 0 error
         out_arr /= valid_obs[..., None] # out_arr = out_arr / valid_obs (with an added third dimension)
         out_arr *= 100 # out_arr = out_arr * 100
-        
-        # print(np.unique(out_arr.sum(axis=2))) # should essentially be 100 (guess sometimes it might not due to rounding errs)
+
         output_array = out_arr.round().astype('uint8') #*TD specify data type
         out_arr = None
 
@@ -354,7 +356,7 @@ class Composite(object):
                         dims=['band'], name='band',
                         coords={'band': class_arr, 
                         'spatial_ref': coords['band'].coords['spatial_ref']})
-        
+
         # for binary class pct output, shape is eg (5000, 5000, n_classes), 
         # tell function by passing the correct order via dims
         variable_name = Composite.make_variable_name(output_path)
@@ -363,7 +365,7 @@ class Composite(object):
                                     desc=f'Binary class statistics - {stat}')
         # return array as rio.to_raster() expects w band first
         output_data_array = output_data_array.transpose('band', 'y', 'x')
-        
+
         return output_data_array
 
     @staticmethod
@@ -372,11 +374,11 @@ class Composite(object):
 
     @staticmethod
     def make_data_array(
-            ndarray: np.ndarray,
-            coords: dict,
-            name: str,
-            dims: list = ['band', 'y', 'x'], #*MW make flexible for ndarray inputs with different dimensions
-            desc: str = "Mode of model results",
+                ndarray: np.ndarray,
+                coords: dict,
+                name: str,
+                dims: list = ['band', 'y', 'x'],
+                desc: str = "Mode of model results",
             ) -> xr.DataArray:
         """
         Given a ndarray, make it a Xarray DataArray
@@ -540,7 +542,7 @@ class Composite(object):
         # we don't wanna process that tile - check if necessary?
         if grid_geodataframe.empty:
             return None
-        
+
         # open land cover product
         try:
             strip_data_array = rxr.open_rasterio(land_cover_path)
@@ -551,7 +553,8 @@ class Composite(object):
                 fh.writelines([f'{land_cover_path}\n'])
             return None
 
-        if strip_data_array.rio.transform().e > 0: #*MW temp to check transform weirdness
+        # *MW temp to check transform weirdness
+        if strip_data_array.rio.transform().e > 0:
             pdb.set_trace()
 
         try:
@@ -567,12 +570,13 @@ class Composite(object):
             cloud_mask_data_array = cloud_mask_data_array.where(
                 cloud_mask_data_array != 0, 0)
 
-        if cloud_mask_data_array.rio.transform().e > 0: #*MW temp to check transform weirdness
+        # *MW temp to check transform weirdness
+        if cloud_mask_data_array.rio.transform().e > 0:
             import pdb; pdb.set_trace()
-            
+
         geometry_to_clip = grid_geodataframe.geometry.values
         geometry_crs = grid_geodataframe.crs
-        
+
         # *MW get info for fixing concat issue with padding - get this before 
         # clipping in case clipping changes pixel size - other solution could 
         # be to move this back down above strip_data_array0 = None and resample
@@ -584,10 +588,14 @@ class Composite(object):
         x_pixels = int(round(xmax-xmin) / x_res)
         y_pixels = int(round(ymax-ymin) / y_res)
 
-        #*MW - sometimes (esp for trimmed outputs - tho may just be an issue while bypassing the footprinting - doesnt hurt) the strip may no longer be in the tile bounds 
+        # *MW - sometimes (esp for trimmed outputs - tho may just be an issue
+        # while bypassing the footprinting - doesnt hurt) the strip
+        # may no longer be in the tile bounds
         try:
-            strip_data_array = strip_data_array.rio.clip(geometry_to_clip,
-                                                             crs = geometry_crs)
+            strip_data_array = strip_data_array.rio.clip(
+                geometry_to_clip,
+                crs = geometry_crs
+            )
         except rxr.exceptions.NoDataInBounds:
             return None
 
