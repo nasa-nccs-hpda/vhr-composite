@@ -12,10 +12,12 @@ from osgeo import gdal
 
 from typing import Union
 
+from vhr_composite.model import metrics
+from vhr_composite.model.utils import convert_to_bit_rep
 from vhr_composite.model.metrics import calculate_mode
 from vhr_composite.model.metrics import calculate_alg
-from vhr_composite.model.metrics import CLASS_0, CLASS_1, CLASS_2
-from vhr_composite.model.metrics import CLASS_0_ALIAS, CLASS_1_ALIAS, CLASS_2_ALIAS
+from vhr_composite.model.metrics import CLASS_0, CLASS_1, CLASS_2, CLASS_3, CLASS_4, CLASS_5
+from vhr_composite.model.metrics import CLASS_0_ALIAS, CLASS_1_ALIAS, CLASS_2_ALIAS, CLASS_3_ALIAS, CLASS_4_ALIAS, CLASS_5_ALIAS
 
 TIME: str = "time"
 X: str = "x"
@@ -139,6 +141,33 @@ class Composite(object):
             concat_dataset = None
         return None
 
+    @staticmethod
+    def reduce_stack(algorithm: str,
+                     tile_dataarray: xr.DataArray,
+                     output_path: str,
+                     overwrite: bool = False,
+                     nodata: np.uint32 = metrics.HOST_FILL,
+                     gpu=True,
+                     logger=None) -> xr.DataArray:
+
+        if output_path.exists() and not overwrite:
+            log_msg = f'{output_path} already exists.'
+            logger.info(log_msg)
+
+        tile_data_array_no_band = tile_dataarray.sel(band=BAND)
+        tile_data_array_prepped = tile_data_array_no_band.transpose(Y, X, TIME)
+        tile_ndarray = tile_data_array_prepped.data
+        tile_ndarray = np.ascontiguousarray(
+            tile_ndarray, dtype=tile_ndarray.dtype)
+
+        algorithm_to_use = eval(f"metrics.{algorithm}")
+        reduced_stack = algorithm_to_use(tile_ndarray, nodata=nodata, gpu=gpu)
+        coords = Composite.get_coords(tile_dataarray)
+        variable_name = Composite.make_variable_name(output_path)
+        reduced_stack_data_array = Composite.make_data_array(
+            reduced_stack, coords, variable_name)
+        return reduced_stack_data_array
+
     def generate_single_grid(
                 self,
                 tile: str,
@@ -188,6 +217,60 @@ class Composite(object):
         arrays = None
         concat_array = None
         return concat_dataset
+
+    @staticmethod
+    def make_variable_name(output_path):
+        return output_path.stem
+    @staticmethod
+    def make_data_array(
+            ndarray: np.ndarray,
+            coords: dict,
+            name: str) -> xr.DataArray:
+        """
+        Given a ndarray, make it a Xarray DataArray
+        """
+        data_array = xr.DataArray(
+            data=ndarray,
+            dims=['band', 'y', 'x'],
+            coords=coords,
+            attrs=dict(
+                description="Mode of model results"
+            ),
+        )
+        data_array.name = name
+        return data_array
+    def fill_holes(
+            self,
+            data_array: xr.DataArray,
+            reduced_stack: np.ndarray,
+            datetimes_to_fill,
+            nodata_value):
+        for datetime in datetimes_to_fill:
+            if not (reduced_stack == nodata_value).any():
+                self._logger.info("No more no-data to fill")
+                break
+            array_per_datetime = data_array.sel(time=datetime)
+            bit_rep_array_per_datetime = convert_to_bit_rep(array_per_datetime)
+            reduced_stack = np.where(reduced_stack == nodata_value,
+                                     bit_rep_array_per_datetime,
+                                     reduced_stack)
+        return reduced_stack
+
+    @staticmethod
+    def get_coords(dataset: xr.Dataset) -> dict:
+        assert hasattr(dataset, 'band')
+        assert hasattr(dataset, 'y')
+        assert hasattr(dataset, 'x')
+        assert hasattr(dataset, 'spatial_ref')
+
+        coords = dict(
+            band=dataset.band,
+            y=dataset.y,
+            x=dataset.x,
+            spatial_ref=dataset.spatial_ref,
+        )
+
+        return coords
 
     def _get_intersection(self) -> dict:
         """
@@ -312,17 +395,38 @@ class Composite(object):
                 time=qa_datetime_to_select)
             model_output_per_datetime_ndarray = \
                 model_output_per_datetime.values
+
+            print("FIRST STEP: ", np.unique(model_output_per_datetime_ndarray))
+
             model_output_per_datetime_ndarray = np.where(
                 model_output_per_datetime_ndarray == CLASS_0,
                 CLASS_0_ALIAS,
                 model_output_per_datetime_ndarray)
+
+            print("SECOND STEP: ", np.unique(model_output_per_datetime_ndarray))
+
             model_output_per_datetime_ndarray = np.where(
                 model_output_per_datetime_ndarray == CLASS_1,
                 CLASS_1_ALIAS,
                 model_output_per_datetime_ndarray)
+
+            print("THIRD STEP: ", np.unique(model_output_per_datetime_ndarray))
+
             model_output_per_datetime_ndarray = np.where(
                 model_output_per_datetime_ndarray == CLASS_2,
                 CLASS_2_ALIAS,
+                model_output_per_datetime_ndarray)
+            model_output_per_datetime_ndarray = np.where(
+                model_output_per_datetime_ndarray == CLASS_3,
+                CLASS_3_ALIAS,
+                model_output_per_datetime_ndarray)
+            model_output_per_datetime_ndarray = np.where(
+                model_output_per_datetime_ndarray == CLASS_4,
+                CLASS_4_ALIAS,
+                model_output_per_datetime_ndarray)
+            model_output_per_datetime_ndarray = np.where(
+                model_output_per_datetime_ndarray == CLASS_5,
+                CLASS_5_ALIAS,
                 model_output_per_datetime_ndarray)
             mode = np.where(mode == OTHER_DATA,
                             model_output_per_datetime_ndarray, mode)
