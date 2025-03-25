@@ -31,6 +31,27 @@ X_AXIS: int = 1
 SUM_NO_MODE: int = 0
 NO_DATA: int = 10
 
+CLASS_0: int = 0
+CLASS_1: int = 1
+CLASS_2: int = 2
+CLASS_0_ALIAS: int = 1
+CLASS_1_ALIAS: int = 2
+CLASS_2_ALIAS: int = 4
+HOST_DTYPE: np.dtype = np.uint8
+HOST_FILL: np.uint32 = np.uint32((2**32)-1)
+HOST_FILL_LEGACY: np.uint32 = np.uint32(10)
+NODATA_LOWER_BOUND = 0
+NODATA_UPPER_BOUND = HOST_FILL
+LAYER_AXIS: int = 2
+LAYER_COUNT: int = 3
+CLASS_COUNT: int = 3
+Y_AXIS: int = 0
+X_AXIS: int = 1
+Z_AXIS: int = 2
+SUM_NO_MODE: int = 0
+NO_DATA: int = 10
+
+from vhr_composite.model import kernels
 
 # --------------------------------------------------------------------------
 # SKELETON FUNCTION PT. 5
@@ -236,3 +257,65 @@ def calculate_mode(grid_cell_data_array: xr.DataArray,
         et = time.time()
         logger.info('Mode compute time {}'.format(round(et-st, 3)))
         return mode
+
+# Define the GPU kernel using Numba
+def multi_mode(arr, nodata=HOST_FILL, gpu=True):
+    """_summary_
+
+    Args:
+        arr (np.ndarray):
+            Input array from which to calculate multi-mode product.
+        nodata (np.uint32, optional): integer
+            No-data value to ignore in calculations.
+            Defaults to HOST_FILL.
+        gpu (bool, optional):
+            If True, will attempt to run the calculation using a GPU.
+            Defaults to True.
+
+    Raises:
+        RuntimeError:
+            If the input array has less than 3 dimensions.
+        RuntimeError:
+            If the no-data value is not within range.
+
+    Returns:
+        np.ndarray: Multi-mode result
+    """
+
+    input_array_shape = arr.shape
+
+    if len(arr.shape) < 3:
+        error_msg = 'Must be more than one layer in time dimension'
+        error_msg = f'{error_msg}. Input shape: {input_array_shape}'
+        raise RuntimeError(error_msg)
+
+    mm_result_shape = arr.shape[:2]
+    result_dtype = np.uint64
+    if not nodata:
+        nodata = HOST_FILL
+    if (nodata <= NODATA_LOWER_BOUND) or (nodata > NODATA_UPPER_BOUND):
+        error_msg = 'no-data value must be within range' + \
+            f' ({NODATA_LOWER_BOUND}, {NODATA_UPPER_BOUND}'
+        raise RuntimeError(error_msg)
+
+    mm_result_array = np.zeros(mm_result_shape, dtype=result_dtype)
+
+    if gpu:
+        mm_result_array_gpu = nb.cuda.to_device(mm_result_array)
+        arr_gpu = nb.cuda.to_device(arr)
+        threadsperblock = (16, 16)
+        blockspergrid_x = (
+            mm_result_shape[1] + threadsperblock[0] - 1) // threadsperblock[0]
+        blockspergrid_y = (
+            mm_result_shape[0] + threadsperblock[1] - 1) // threadsperblock[1]
+        blockspergrid = (blockspergrid_x, blockspergrid_y)
+        kernels.calculate_multi_mode_gpu_kernel[blockspergrid,
+                                                threadsperblock](
+            arr_gpu, mm_result_array_gpu, nodata)
+        mm_result_array = mm_result_array_gpu.copy_to_host()
+    else:
+        mm_result_array = kernels.calculate_multi_mode_cpu_kernel(
+            arr, mm_result_array)
+
+    mm_result_array = np.expand_dims(mm_result_array, axis=0)
+    return mm_result_array
