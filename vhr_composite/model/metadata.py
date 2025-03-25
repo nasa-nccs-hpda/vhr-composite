@@ -67,8 +67,8 @@ class Metadata(object):
             all_touched = True
 
         # TODO: TEMP until Jordan fixes cloud mask
-        self.fp_gdf = self.fp_gdf[
-            self.fp_gdf['strip_id'] != 'WV02_20110223_M1BS_1030010009935100']
+        # self.fp_gdf = self.fp_gdf[
+        #    self.fp_gdf['strip_id'] != 'WV02_20110223_M1BS_1030010009935100']
 
         # List to hold outputs from zonal stats
         output_gdfs_list = [self.fp_gdf]
