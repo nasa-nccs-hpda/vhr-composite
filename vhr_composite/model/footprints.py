@@ -1,5 +1,6 @@
 import os
 import logging
+import rasterio
 import pandas as pd
 import geopandas as gpd
 import rioxarray as rxr
@@ -152,26 +153,30 @@ class Footprints(object):
         gdf_list = []
         for filename in input_tifs:
 
-            # read raster
-            raster = rxr.open_rasterio(filename)
+            # print("HEYYYYY", filename)
+            try:
+                # read raster
+                raster = rxr.open_rasterio(filename)
 
-            # get raster bounds
-            bounds = raster.rio.bounds()
+                # get raster bounds
+                bounds = raster.rio.bounds()
 
-            # generate geodataframe from raster information
-            raster_gdf = gpd.GeoDataFrame({
-                gdf_column: [filename],
-                'geometry': [
-                        box(bounds[0], bounds[1], bounds[2], bounds[3])],
-                }, crs=str(raster.rio.crs)
-            )
+                # generate geodataframe from raster information
+                raster_gdf = gpd.GeoDataFrame({
+                    gdf_column: [filename],
+                    'geometry': [
+                            box(bounds[0], bounds[1], bounds[2], bounds[3])],
+                    }, crs=str(raster.rio.crs)
+                )
 
-            # if the CRS is different, we force them to be the same
-            if str(raster_gdf.crs) != str(self.conf.epsg):
-                raster_gdf = raster_gdf.to_crs(self.conf.epsg)
+                # if the CRS is different, we force them to be the same
+                if str(raster_gdf.crs) != str(self.conf.epsg):
+                    raster_gdf = raster_gdf.to_crs(self.conf.epsg)
 
-            # append to the list to concatenate
-            gdf_list.append(raster_gdf)
+                # append to the list to concatenate
+                gdf_list.append(raster_gdf)
+            except rasterio.errors.RasterioIOError:
+                continue
 
         # generate dataframe
         gdf = gpd.GeoDataFrame(
