@@ -674,9 +674,11 @@ class Composite(object):
             x_pad = x_pixels-strip_data_array.x.size
 
             # pad array with constant value in both x directions
-            strip_data_array0=strip_data_array.pad(x=x_pad, 
-                                                     constant_values=fill_value)
-            
+            strip_data_array0=strip_data_array.pad(
+                x=x_pad,
+                constant_values=fill_value
+            )
+
             # pad x coords and assign new min/max extents
             xmin_pad = strip_data_array.x.values.min() - x_pad*x_res
             xmax_pad = strip_data_array.x.values.max() + x_pad*x_res
@@ -686,11 +688,11 @@ class Composite(object):
             x_padded = strip_data_array.x.pad(x=x_pad, mode='linear_ramp', 
                                               end_values=(xmin_pad, xmax_pad))
             strip_data_array0 = strip_data_array0.assign_coords(x = x_padded)
-            
+
             del x_padded, xmin_pad, xmax_pad
-            
+
             strip_data_array = strip_data_array0 # in case fixing both
-        
+
         if strip_data_array.y.size < y_pixels:
 
             # determine max amount of pixels needed to ensure full tile coverage
