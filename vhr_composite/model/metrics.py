@@ -402,8 +402,6 @@ def calculate_trend_confidence_numba(series, window_size=4):
     run_lengths = []
     current_run = 1
     for i in range(1, n):
-    for i in range(1, n):
-        
         if series[i] == series[i - 1]:
             current_run += 1
         else:
