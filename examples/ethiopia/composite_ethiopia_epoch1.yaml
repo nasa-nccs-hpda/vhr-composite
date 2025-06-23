@@ -1,0 +1,98 @@
+# CAS composite configuration file
+
+#--------------------------------------------
+# general
+#--------------------------------------------
+
+# output directory to store artifacts
+output_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover_composite/ethopia-v10'
+
+# Assume for now we are doing one region at a time
+region: 'Amhara'
+
+# EPSG for the composite and shapefiles
+epsg: 'EPSG:32637'
+
+# grid path
+# grid_path: '/explore/nobackup/projects/3sl/auxiliary/Shapefiles/Amhara_Study_Area_Grid_4buf10km_EPSG_anotated.gpkg'
+grid_path: '/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/vhr-composite/scripts/testing/geopackages/Amhara_Study_Area_Grid_4buf10km_EPSG_anotated.gpkg'
+
+#--------------------------------------------
+# build_footprints
+#--------------------------------------------
+
+#2016
+start_year: 2009 #2009
+
+#2023  # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
+end_year: 2015 #2025 # 2013
+
+# input data regex or filename to location where toa imagery resides
+input_data_regex: '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif'
+
+# filename of footprint file to output
+footprints_filename: '${output_dir}/Amhara_M1BS_griddedToa_${start_year}_${end_year}.gpkg'
+
+# input column to add to the file
+input_column_field: toa_path
+
+#--------------------------------------------
+# extract_metadata
+#--------------------------------------------
+join_cols:
+#  - 'tile'
+  - 'strip_id'
+
+date_column_field: date
+date_column_field_format: '%Y%m%d'
+
+use_dask: True
+n_partitions: 1000
+scheduler: 'processes'
+
+# default stats, Varies for task/input .shp
+stats_list:
+  - 'median'
+
+metadata_fields:
+  - all_touched
+  #- soil_moisture
+
+metadata_filename: '${output_dir}/Amhara_M1BS_griddedToa_metadata_${start_year}_${end_year}.gpkg'
+
+# projectDir  = '/explore/nobackup/projects/3sl'
+# self.auxDir      = os.path.join(self.projectDir, 'auxiliary')
+# self.productDir  = os.path.join(self.projectDir, 'products')
+# monthly_soil_moisture_filename: '/explore/nobackup/projects/3sl/auxiliary/SoilMoisture_0-10cm/wa_monthly_fldas_soilmoi00_10cm_tavg_<date>.tif'
+#--------------------------------------------
+# composite
+#--------------------------------------------
+
+test_name: 'qaTest1'
+model_name: 'otcb.v11'
+grid_cell_name_pre_str: 'Amhara.M1BS'
+
+datetime_column: 'datetime'
+
+
+# Add in our landcover products and cloud mask products to the metadata
+# footprints file. Because what's the point if we don't have some damn
+# LC products to work with.
+landcover_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/6class-global-standardization-256-4band-v12/results/Amhara-MS'
+landcover_suffix: '-toa.6class'
+
+cloudmask_dir: '/explore/nobackup/projects/3sl/products/cloudmask/v2/Amhara-MS'
+cloudmask_suffix: '-toa.cloudmask'
+
+composite_fields:
+  - landcover
+  - cloudmask
+  - soil_moisture
+
+composite_classes:
+  0: 0
+  1: 1
+  2: 2
+  3: 3
+  4: 4
+  5: 5

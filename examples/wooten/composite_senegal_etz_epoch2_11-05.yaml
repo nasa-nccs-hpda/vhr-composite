@@ -1,0 +1,152 @@
+# Amhara composite configuration file
+
+#copied from Jordan /explore/nobackup/people/jacaraba/development/vhr-composite-jordan-edits
+#*MW made edits circa 11/12/2024 - in here and all code possibly
+
+#--------------------------------------------
+# general
+#--------------------------------------------
+# EPOCH2
+#2016
+start_year: 2016 #2016 #2009 #2009
+
+#2023  # NO LONGER UPPER BOUND EXCLUSIVE #*MW
+end_year: 2022 #2015 #2024 #2015 #2025 # 2013 # 2015 will include 2015
+
+# Assume for now we are doing one region at a time
+region: 'ETZ'
+
+# output directory to store zarrs and start.end subdirs for tifs/logs
+output_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover_composite/${region}-v4.2-TEST'
+
+
+# EPSG for the composite and shapefiles
+epsg: 'EPSG:32628'
+
+# grid path
+# grid_path: '/explore/nobackup/projects/3sl/auxiliary/Shapefiles/Amhara_Study_Area_Grid_4buf10km_EPSG_anotated.gpkg'
+# grid_path: '/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/vhr-composite/scripts/testing/geopackages/Amhara_Study_Area_Grid_4buf10km_EPSG_anotated.gpkg'
+grid_path: '/panfs/ccds02/nobackup/projects/3sl/auxiliary/Shapefiles/Senegal_Grid__${region}.gpkg'
+
+#--------------------------------------------
+# build_footprints
+#--------------------------------------------
+
+# input data regex or filename to location where toa imagery resides
+input_data_regex: '/explore/nobackup/projects/3sl/data/VHR/${region}/M1BS/*-toa.tif'
+
+# filename of footprint file to output
+footprints_filename: '${output_dir}/${region}_M1BS_griddedToa_${start_year}_${end_year}.gpkg'
+
+# input column to add to the file
+input_column_field: toa_path
+
+#--------------------------------------------
+# extract_metadata
+#--------------------------------------------
+join_cols:
+#  - 'tile'
+  - 'strip_id'
+
+date_column_field: date
+date_column_field_format: '%Y%m%d'
+
+use_dask: False #*MW
+n_partitions: 1000
+scheduler: 'processes'
+
+# default stats, Varies for task/input .shp
+stats_list:
+  - 'median'
+
+metadata_fields:
+  - all_touched
+  #- soil_moisture
+
+#*MW
+# metadata_filename: '${output_dir}/${region}_M1BS_griddedToa_metadata_${start_year}_${end_year}.gpkg'
+metadata_filename: '${output_dir}/${region}_M1BS_griddedToa_metadata.gpkg'
+
+# projectDir  = '/explore/nobackup/projects/3sl'
+# self.auxDir      = os.path.join(self.projectDir, 'auxiliary')
+# self.productDir  = os.path.join(self.projectDir, 'products')
+# monthly_soil_moisture_filename: '/explore/nobackup/projects/3sl/auxiliary/SoilMoisture_0-10cm/wa_monthly_fldas_soilmoi00_10cm_tavg_<date>.tif'
+#--------------------------------------------
+# composite
+#--------------------------------------------
+
+#* TODO simplify this stuff for filenaming
+test_name: 'qaTest1'
+model_name: 'otcb.v11'
+grid_cell_name_pre_str: '${region}.M1BS'
+
+datetime_column: 'datetime'
+
+#*MW options to run
+calculate_nobservations: True
+# calc_nobs_only: True #*MW temp
+calculate_mode_composite: True
+# if True, produce binary class frequency of occurence (%) outputs (or others)
+calculate_binary_stats: True
+binary_stats:
+  - 'pct'
+  - 'max'
+  - 'median'
+
+#*MW overwrite mode/nobs/class output tifs (not zarrs)
+overwrite_tifs: False
+overwrite_zarrs: False
+
+# Add in our landcover products and cloud mask products to the metadata
+# footprints file. Because what's the point if we don't have some damn
+# LC products to work with.
+#*MW added region var
+landcover_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/GMU_Experiments/eCAS-wCAS-ETZ-otcb-60_repeat3/predictions_trim2_edit/${region}'
+landcover_suffix: '-toa.landcover'
+
+#*MW added region var
+# cloudmask_dir: '/explore/nobackup/projects/3sl/products/cloudmask/v2/Amhara-MS'
+cloudmask_dir: '/explore/nobackup/projects/3sl/products/cloudmask/v2/${region}'
+cloudmask_suffix: '-toa.cloudmask'
+
+#*MW added to filter images - #*TD make more flexible for months and other filters later
+# Set to False if we do not want to filter
+filter_months: False
+# These must be set if above is True
+filter_name: '11-05'
+remove_months:
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+
+#*MW added to skip this
+soil_moisture_qa: False
+
+composite_fields:
+  - landcover
+  - cloudmask
+  # - soil_moisture
+
+#*MW adding since differs between 3sl/amhaar
+burn_area_value: 3 
+composite_classes:
+  0: 0
+  1: 1
+  2: 2
+
+#--------------------------------------------
+# composite post-processing - for now, establish rules for combining class-pct outputs
+# for now we can do this here but later might separate so we can combine filtered and unfiltered indiv classes
+#--------------------------------------------
+#*MW not yet implemented 
+# the below dictionary corresponds to the thresholds and orders for each class-pct
+# eg {0: 1, 1: 33, 2: 25} means output will be combined with other >=1 % on bottom, then tree/shrub >= 33%, then crop >=25%
+post_process_combine: True
+# Outputs will be stored in epoch/_combined_{combine_name}
+combine_name: 'test1'
+combine_classes:
+  0: 1
+  1: 25
+  2: 25
