@@ -3,8 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+vhr-composite-jordan-edits/
+vhr-composite-redoing/
+vhr-composite-something-at-some-point/
+vhr-composite-something/
+
 # C extensions
 *.so
+*.tif
 
 # Distribution / packaging
 .Python

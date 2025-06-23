@@ -30,23 +30,22 @@ def main():
     # * Set some (hardcoded for now) variables
     region = 'CAS'  # Assume for now we are doing one region at a time
     test_name = 'qaTest2'
-    model_name = 'otcb.v5'
+    model_name = 'otcb.v11'
     grid_cell_name_pre_str = 'CAS.M1BS'
-    start_year = 2016
-    end_year = 2023  # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
+    start_year = 2009 #2016
+    end_year = 2016 #2023  # UPPER BOUND EXCLUSIVE (LEARNED THROUGH MISTAKES)
     datetime_column = 'datetime'
 
-    output_dir = '/explore/nobackup/projects/3sl/data/Validation/composite/CAS/'
+    output_dir = '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase/quality-scale-unet/results/composite/CAS'
 
     grid_path = '/explore/nobackup/people/mwooten3/Senegal_LCLUC/' + \
         'Shapefiles/Grid/Senegal_Grid__all.shp'
-    metadataFootprints = 'CAS_M1BS_metadataGrid.gpkg'
+    metadataFootprints = '/explore/nobackup/projects/3sl/products/composites/_metadataGrids/CAS_M1BS_griddedToa_metadata.gpkg'
 
     # Add in our landcover products and cloud mask products to the metadata
     # footprints file. Because what's the point if we don't have some damn
     # LC products to work with.
-    lcDir = '/explore/nobackup/projects/3sl/development/' + \
-        'cnn_landcover/normalization/otcb.v5'
+    lcDir = '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase/quality-scale-unet/results/CAS'
     cloudDir = '/explore/nobackup/projects/3sl/products/' + \
         'cloudmask/v1/{}'.format(region)  # CHanging to explore soon
 
@@ -55,9 +54,9 @@ def main():
 
     # Some soil moisture values are NaN's, we
     # do not question why, we just fix. This is the way.
-    soil_m_median = metadata_gdf['soilM_medi'].values
+    soil_m_median = metadata_gdf['soilM_median'].values
     soil_m_median = np.nan_to_num(soil_m_median, nan=9999.0)
-    metadata_gdf['soilM_medi'] = soil_m_median
+    metadata_gdf['soilM_median'] = soil_m_median
 
     # Set as columns in geodataframe
     metadata_gdf['landcover'] = list(map(lambda f: os.path.join(

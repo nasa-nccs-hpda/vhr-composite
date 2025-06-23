@@ -1,3 +1,9 @@
 #!/bin/bash
 
-sbatch -J $1_composite_ETZ -o composite_ETZ_$1.out ./run_etz_composite tile_lists/tile_$1.txt 
+#sbatch -J $1_composite_ETZ -o composite_ETZ_$1.out ./run_etz_composite tile_lists/tile_$1.txt 
+
+for i in {1..33}
+do
+    sbatch /explore/nobackup/people/jacaraba/development/vhr-composite/slurm/run_etz_composite /explore/nobackup/people/jacaraba/development/vhr-composite/tile_lists/tile_$i.txt
+done
+

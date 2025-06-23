@@ -63,9 +63,9 @@ def main():
 
     # Some soil moisture values are NaN's, we
     # do not question why, we just fix. This is the way.
-    soil_m_median = metadata_gdf['soilM_medi'].values
+    soil_m_median = metadata_gdf['soilM_median'].values
     soil_m_median = np.nan_to_num(soil_m_median, nan=9999.0)
-    metadata_gdf['soilM_medi'] = soil_m_median
+    metadata_gdf['soilM_median'] = soil_m_median
 
     # Set as columns in geodataframe
     metadata_gdf['landcover'] = list(map(lambda f: os.path.join(
